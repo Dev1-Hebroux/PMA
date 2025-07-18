@@ -211,10 +211,10 @@ const Header = () => {
             <div className="flex items-center space-x-2">
               <div className="text-right">
                 <div className="text-sm font-medium">{user.full_name}</div>
-                <div className="text-xs text-blue-200">
+                <div className="text-sm text-blue-200">
                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                   {user.nhs_number && (
-                    <span className="ml-2">NHS: {user.nhs_number}</span>
+                    <span className="ml-2">ID: {user.nhs_number}</span>
                   )}
                 </div>
               </div>
