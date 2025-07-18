@@ -414,7 +414,7 @@ const LoginForm = () => {
                   required
                 />
                 <label htmlFor="gdpr-consent" className="text-sm text-gray-700">
-                  I consent to the processing of my personal data in accordance with GDPR and NHS data protection standards. 
+                  I consent to the processing of my personal data in accordance with GDPR and healthcare data protection standards. 
                   <a href="#" className="text-blue-600 hover:text-blue-800 underline ml-1">
                     Learn more
                   </a>
