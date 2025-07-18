@@ -31,7 +31,7 @@ db = client[os.environ['DB_NAME']]
 
 # Create the main app
 app = FastAPI(
-    title="MedRx Manager - Healthcare Innovation Platform",
+    title="Prescription Management App (PMA)",
     description="A comprehensive prescription management system powered by Innovating Chaos",
     version="2.0.0"
 )
