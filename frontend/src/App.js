@@ -458,8 +458,9 @@ const LoginForm = () => {
         </div>
 
         <div className="mt-6 text-center text-xs text-gray-500">
-          <p>🔒 Secured by NHS-grade encryption</p>
+          <p>🔒 Secured by healthcare-grade encryption</p>
           <p>♿ WCAG 2.2 AA Compliant • GDPR Compliant</p>
+          <p className="text-blue-600 font-medium">Powered by Innovating Chaos</p>
         </div>
       </div>
     </div>
