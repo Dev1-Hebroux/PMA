@@ -401,9 +401,9 @@ async def register(user_data: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Validate NHS number format (basic validation)
-    if user_data.nhs_number and len(user_data.nhs_number) != 10:
-        raise HTTPException(status_code=400, detail="Invalid NHS number format")
+    # Validate patient ID format (basic validation)
+    if user_data.nhs_number and len(user_data.nhs_number) > 15:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
     
     # Create new user
     password_hash = get_password_hash(user_data.password)
