@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend Testing for Prescription Management System
-Tests authentication, prescription workflow, user management, and delegation system
+Comprehensive Backend Testing for Enhanced NHS-Integrated Prescription Management System
+Tests enhanced authentication, advanced prescription workflow, notifications, analytics, and compliance features
 """
 
 import requests
 import json
 import time
-from datetime import datetime
-from typing import Dict, Any, Optional
+import websocket
+import threading
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
 
 # Configuration
 BASE_URL = "https://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com/api"
+WS_URL = "wss://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com/ws"
 TIMEOUT = 30
 
 class BackendTester:
