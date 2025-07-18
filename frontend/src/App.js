@@ -143,14 +143,19 @@ const Header = () => {
     <header className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 shadow-lg">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-              <span className="text-blue-600 font-bold text-sm">NHS</span>
+          <div className="flex items-center space-x-3">
+            <img 
+              src="https://github.com/user-attachments/assets/a5e0c3d4-8c89-4d12-9a6e-7b8e9c5d2a1f" 
+              alt="Innovating Chaos Logo" 
+              className="w-10 h-10 object-contain"
+            />
+            <div>
+              <h1 className="text-2xl font-bold">MedRx Manager</h1>
+              <span className="text-xs text-blue-200">by Innovating Chaos</span>
             </div>
-            <h1 className="text-2xl font-bold">MedRx Manager</h1>
           </div>
           <span className="text-sm bg-blue-500 px-2 py-1 rounded-full">
-            NHS-Integrated • WCAG 2.2 AA
+            Healthcare Innovation • WCAG 2.2 AA
           </span>
         </div>
         
