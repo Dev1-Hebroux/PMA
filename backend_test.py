@@ -217,7 +217,7 @@ class BackendTester:
         # Test accessing protected route without token
         try:
             response = self.make_request("GET", "/users/me")
-            if response.status_code == 401:
+            if response.status_code in [401, 403]:  # FastAPI HTTPBearer can return either
                 self.log("✅ Protected route properly rejects requests without token")
                 success_count += 1
             else:
