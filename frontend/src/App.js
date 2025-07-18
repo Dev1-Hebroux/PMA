@@ -374,19 +374,19 @@ const LoginForm = () => {
               {formData.role === 'patient' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    NHS Number
+                    Patient ID Number
                   </label>
                   <input
                     type="text"
                     value={formData.nhs_number}
                     onChange={(e) => setFormData({...formData, nhs_number: e.target.value})}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1234567890"
+                    placeholder="Patient123456"
                     maxLength="10"
-                    aria-describedby="nhs-help"
+                    aria-describedby="patient-help"
                   />
-                  <div id="nhs-help" className="text-xs text-gray-500 mt-1">
-                    Your 10-digit NHS number (optional)
+                  <div id="patient-help" className="text-xs text-gray-500 mt-1">
+                    Your unique patient identifier (optional)
                   </div>
                 </div>
               )}
