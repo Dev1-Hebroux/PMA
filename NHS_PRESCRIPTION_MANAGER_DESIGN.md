@@ -1,9 +1,10 @@
-# NHS-Integrated Prescription Management System
+# MedRx Manager - Healthcare Innovation Platform
 ## Comprehensive Design Document v2.0
+### Powered by Innovating Chaos
 
 ### 🎯 Executive Summary
 
-The NHS-Integrated Prescription Management System is a comprehensive, UK-compliant healthcare solution that enhances the existing NHS Electronic Prescription Service (EPS) by providing a patient-centric overlay for seamless prescription management across the entire healthcare journey.
+The MedRx Manager is a comprehensive, healthcare-compliant prescription management solution developed by Innovating Chaos. This innovative platform enhances existing healthcare systems by providing a patient-centric overlay for seamless prescription management across the entire healthcare journey.
 
 ### 🏗️ System Architecture
 
