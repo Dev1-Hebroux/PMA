@@ -166,12 +166,29 @@ class BackendTester:
         """Test user login functionality"""
         self.log("Testing user login functionality...")
         
-        login_tests = [
-            {"email": "sarah.johnson@email.com", "password": "SecurePass123!", "role": "patient"},
-            {"email": "dr.smith@medicalpractice.com", "password": "DoctorPass456!", "role": "gp"},
-            {"email": "manager@wellnesspharmacy.com", "password": "PharmacyPass789!", "role": "pharmacy"},
-            {"email": "emma.wilson@email.com", "password": "DelegatePass321!", "role": "delegate"}
-        ]
+        # Use the emails from registration or fallback to existing ones
+        login_tests = []
+        for role in ["patient", "gp", "pharmacy", "delegate"]:
+            if role in self.users:
+                login_tests.append({
+                    "email": self.users[role]["email"],
+                    "password": {
+                        "patient": "SecurePass123!",
+                        "gp": "DoctorPass456!",
+                        "pharmacy": "PharmacyPass789!",
+                        "delegate": "DelegatePass321!"
+                    }[role],
+                    "role": role
+                })
+        
+        # If no users from registration, try with original emails
+        if not login_tests:
+            login_tests = [
+                {"email": "sarah.johnson@email.com", "password": "SecurePass123!", "role": "patient"},
+                {"email": "dr.smith@medicalpractice.com", "password": "DoctorPass456!", "role": "gp"},
+                {"email": "manager@wellnesspharmacy.com", "password": "PharmacyPass789!", "role": "pharmacy"},
+                {"email": "emma.wilson@email.com", "password": "DelegatePass321!", "role": "delegate"}
+            ]
         
         success_count = 0
         
@@ -185,6 +202,15 @@ class BackendTester:
                 if response.status_code == 200:
                     token_data = response.json()
                     if token_data.get("role") == login_data["role"]:
+                        # Store token for later tests if not already stored
+                        if login_data["role"] not in self.tokens:
+                            self.tokens[login_data["role"]] = token_data["access_token"]
+                            self.users[login_data["role"]] = {
+                                "user_id": token_data["user_id"],
+                                "email": login_data["email"],
+                                "role": login_data["role"],
+                                "full_name": "Test User"
+                            }
                         self.log(f"✅ {login_data['role'].title()} login successful")
                         success_count += 1
                     else:
