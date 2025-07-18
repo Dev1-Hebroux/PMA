@@ -283,16 +283,19 @@ const LoginForm = () => {
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-blue-200">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">NHS</span>
-            </div>
+            <img 
+              src="https://github.com/user-attachments/assets/a5e0c3d4-8c89-4d12-9a6e-7b8e9c5d2a1f" 
+              alt="Innovating Chaos Logo" 
+              className="w-20 h-20 object-contain"
+            />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
             {isLogin ? 'Welcome Back' : 'Join MedRx'}
           </h2>
           <p className="text-gray-600">
-            {isLogin ? 'Sign in to your NHS-integrated account' : 'Create your secure healthcare account'}
+            {isLogin ? 'Sign in to your healthcare account' : 'Create your secure healthcare account'}
           </p>
+          <p className="text-sm text-blue-600 mt-1">Powered by Innovating Chaos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
