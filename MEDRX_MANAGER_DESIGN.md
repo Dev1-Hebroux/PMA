@@ -1,10 +1,10 @@
-# MedRx Manager - Healthcare Innovation Platform
+# Prescription Management App (PMA)
 ## Comprehensive Design Document v2.0
 ### Powered by Innovating Chaos
 
 ### 🎯 Executive Summary
 
-The MedRx Manager is a comprehensive, healthcare-compliant prescription management solution developed by Innovating Chaos. This innovative platform enhances existing healthcare systems by providing a patient-centric overlay for seamless prescription management across the entire healthcare journey.
+The Prescription Management App (PMA) is a comprehensive, healthcare-compliant prescription management solution developed by Innovating Chaos. This innovative platform enhances existing healthcare systems by providing a patient-centric overlay for seamless prescription management across the entire healthcare journey.
 
 ### 🏗️ System Architecture
 
