@@ -776,7 +776,7 @@ async def get_analytics_dashboard(current_user: User = Depends(get_current_user)
 # Basic routes
 @api_router.get("/")
 async def root():
-    return {"message": "MedRx Manager - Healthcare Innovation API", "version": "2.0.0", "powered_by": "Innovating Chaos"}
+    return {"message": "Prescription Management App (PMA) API", "version": "2.0.0", "powered_by": "Innovating Chaos"}
 
 @api_router.get("/health")
 async def health_check():
@@ -784,7 +784,8 @@ async def health_check():
         "status": "healthy", 
         "timestamp": datetime.utcnow(),
         "version": "2.0.0",
-        "platform": "Innovating Chaos",
+        "app": "Prescription Management App (PMA)",
+        "powered_by": "Innovating Chaos",
         "features": ["Healthcare Innovation", "WCAG 2.2 Compliance", "Real-time Notifications"]
     }
 
