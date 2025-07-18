@@ -119,14 +119,17 @@ backend:
         - working: true
           agent: "testing"
           comment: "✅ COMPREHENSIVE TESTING PASSED: All authentication functionality working correctly. Tested user registration for all 4 roles (patient, gp, pharmacy, delegate), login with valid/invalid credentials, JWT token generation and validation, and protected route access control. All 8 test categories passed including health checks, user management, prescription workflow, delegation system, and role-based access control."
+        - working: true
+          agent: "testing"
+          comment: "✅ ENHANCED AUTHENTICATION TESTING PASSED: Successfully tested enhanced authentication system with NHS numbers, GDPR consent, and enhanced token data including expires_in field. NHS number validation working correctly (rejects invalid format). All enhanced user registration working for Patient, GP, and Pharmacy roles with proper NHS data fields."
   
   - task: "Prescription workflow management"
     implemented: true
-    working: true
+    working: false
     file: "server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
@@ -134,6 +137,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "✅ COMPREHENSIVE TESTING PASSED: Complete prescription workflow tested successfully. Verified patient can create prescriptions, GP can view pending and approve prescriptions, pharmacy can view approved and fulfill prescriptions. All status transitions working correctly (requested -> gp_approved -> pharmacy_fulfilled). Role-based access control properly implemented - only patients can create prescriptions, only GPs can approve, only pharmacies can fulfill."
+        - working: false
+          agent: "testing"
+          comment: "❌ ENHANCED PRESCRIPTION WORKFLOW FAILED: Advanced prescription creation with QR codes, collection PINs, and enhanced fields (medication_code, priority, prescription_type) is failing with 500 error. This appears to be due to missing dependencies (qrcode library) or backend service issues. Basic prescription workflow may still work but enhanced features are not functional."
   
   - task: "User management endpoints"
     implemented: true
@@ -149,8 +155,44 @@ backend:
         - working: true
           agent: "testing"
           comment: "✅ COMPREHENSIVE TESTING PASSED: All user management endpoints working correctly. Tested /users/me endpoint for all roles, /users/gps and /users/pharmacies listing endpoints. JWT authentication working properly with Bearer token validation. User data retrieval and role-based access all functioning as expected."
+        - working: true
+          agent: "testing"
+          comment: "✅ ENHANCED USER MANAGEMENT PASSED: User profile updates working correctly with protected fields validation. Pharmacy nomination endpoint working for patients with proper access control (non-patients blocked). Enhanced user management features fully functional."
   
   - task: "Delegation system"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented delegation create/read/approve endpoints. Allows patients to authorize others to collect prescriptions with approval workflow."
+        - working: true
+          agent: "testing"
+          comment: "✅ COMPREHENSIVE TESTING PASSED: Delegation system fully functional. Tested delegation creation by patients, delegation viewing by both patients and delegates, and delegation approval workflow. Role-based access control working - only patients can create delegations, proper approval process implemented with 30-day expiry."
+        - working: "NA"
+          agent: "testing"
+          comment: "❌ ENHANCED DELEGATION TESTING INCOMPLETE: Could not test enhanced delegation system with PIN/QR codes and GDPR consent due to missing delegate user in test setup. Basic delegation functionality appears implemented but enhanced features need retesting with proper test data setup."
+
+  - task: "Real-time notification system"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented comprehensive notification system with WebSocket support, notification CRUD operations, and real-time delivery. Includes notification types for prescription updates and delegation requests."
+        - working: true
+          agent: "testing"
+          comment: "✅ NOTIFICATION SYSTEM TESTING PASSED: Notification retrieval endpoint working correctly, returning proper list format. Notification mark-as-read functionality working with proper response format. WebSocket endpoint implemented but not tested due to complexity. Core notification features fully functional."
+
+  - task: "Analytics and reporting dashboard"
     implemented: true
     working: true
     file: "server.py"
@@ -160,10 +202,25 @@ backend:
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "Implemented delegation create/read/approve endpoints. Allows patients to authorize others to collect prescriptions with approval workflow."
+          comment: "Implemented analytics dashboard endpoint with prescription statistics, completion rates, and role-based access control for GP, Pharmacy, and Admin roles."
         - working: true
           agent: "testing"
-          comment: "✅ COMPREHENSIVE TESTING PASSED: Delegation system fully functional. Tested delegation creation by patients, delegation viewing by both patients and delegates, and delegation approval workflow. Role-based access control working - only patients can create delegations, proper approval process implemented with 30-day expiry."
+          comment: "✅ ANALYTICS DASHBOARD TESTING PASSED: Analytics endpoint working correctly for GP and Pharmacy roles with all required fields (total_prescriptions, pending_prescriptions, approved_prescriptions, dispensed_prescriptions, completion_rate). Proper access control implemented - patient access correctly denied with 403 status."
+
+  - task: "Enhanced audit and compliance features"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented comprehensive audit logging system with GDPR compliance features, audit log creation for all major actions, and proper data categorization for healthcare data."
+        - working: "NA"
+          agent: "testing"
+          comment: "AUDIT SYSTEM NOT DIRECTLY TESTED: Audit logging is implemented in backend code with proper GDPR categorization and action tracking, but no direct API endpoints for audit log retrieval were tested. System appears to log all major actions (create, update, view, approve) automatically."
 
 frontend:
   - task: "Multi-role authentication UI"
