@@ -822,7 +822,7 @@ async def startup_event():
     await db.audit_logs.create_index("user_id")
     await db.audit_logs.create_index("timestamp")
     
-    logger.info("MedRx Manager - Healthcare Innovation Platform started successfully")
+    logger.info("Prescription Management App (PMA) powered by Innovating Chaos started successfully")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
