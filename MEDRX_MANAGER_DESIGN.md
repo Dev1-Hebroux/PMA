@@ -12,8 +12,8 @@ The Prescription Management App (PMA) is a comprehensive, healthcare-compliant p
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                 MedRx Manager - Healthcare Innovation           │
-│                        Powered by Innovating Chaos             │
+│              Prescription Management App (PMA)                  │
+│                  Powered by Innovating Chaos                   │
 ├─────────────────────────────────────────────────────────────────┤
 │  Frontend Layer (React + PWA)                                  │
 │  ├─ Patient Portal (WCAG 2.2 AA Compliant)                     │
