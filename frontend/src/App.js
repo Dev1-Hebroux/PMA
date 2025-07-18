@@ -144,14 +144,12 @@ const Header = () => {
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
-            <img 
-              src="https://github.com/user-attachments/assets/a5e0c3d4-8c89-4d12-9a6e-7b8e9c5d2a1f" 
-              alt="Innovating Chaos Logo" 
-              className="w-10 h-10 object-contain"
-            />
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-lg">PMA</span>
+            </div>
             <div>
-              <h1 className="text-2xl font-bold">MedRx Manager</h1>
-              <span className="text-xs text-blue-200">by Innovating Chaos</span>
+              <h1 className="text-2xl font-bold">Prescription Management App</h1>
+              <span className="text-xs text-blue-200">Powered by Innovating Chaos</span>
             </div>
           </div>
           <span className="text-sm bg-blue-500 px-2 py-1 rounded-full">
