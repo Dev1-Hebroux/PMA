@@ -12,7 +12,8 @@ The MedRx Manager is a comprehensive, healthcare-compliant prescription manageme
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                 NHS-Integrated Prescription Manager             │
+│                 MedRx Manager - Healthcare Innovation           │
+│                        Powered by Innovating Chaos             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Frontend Layer (React + PWA)                                  │
 │  ├─ Patient Portal (WCAG 2.2 AA Compliant)                     │
