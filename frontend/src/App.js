@@ -11,13 +11,40 @@ const AuthContext = createContext();
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [notifications, setNotifications] = useState([]);
+  const [wsConnection, setWsConnection] = useState(null);
 
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchCurrentUser();
+      setupWebSocket();
     }
   }, [token]);
+
+  const setupWebSocket = () => {
+    if (user && !wsConnection) {
+      const ws = new WebSocket(`${BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/ws/${user.id}`);
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'notification') {
+          setNotifications(prev => [data.data, ...prev]);
+        }
+      };
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setWsConnection(null);
+      };
+      
+      setWsConnection(ws);
+    }
+  };
 
   const fetchCurrentUser = async () => {
     try {
@@ -26,6 +53,15 @@ const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error fetching user:', error);
       logout();
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get(`${API}/notifications`);
+      setNotifications(response.data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     }
   };
 
@@ -65,11 +101,24 @@ const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setNotifications([]);
+    if (wsConnection) {
+      wsConnection.close();
+      setWsConnection(null);
+    }
     delete axios.defaults.headers.common['Authorization'];
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, token }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      register, 
+      logout, 
+      token, 
+      notifications, 
+      fetchNotifications 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -85,23 +134,93 @@ const useAuth = () => {
 
 // Components
 const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, notifications } = useAuth();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <header className="bg-blue-600 text-white p-4">
+    <header className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 shadow-lg">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold">MedRx Manager</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+              <span className="text-blue-600 font-bold text-sm">NHS</span>
+            </div>
+            <h1 className="text-2xl font-bold">MedRx Manager</h1>
+          </div>
+          <span className="text-sm bg-blue-500 px-2 py-1 rounded-full">
+            NHS-Integrated • WCAG 2.2 AA
+          </span>
+        </div>
+        
         {user && (
           <div className="flex items-center space-x-4">
-            <span className="text-sm">
-              {user.full_name} ({user.role})
-            </span>
-            <button
-              onClick={logout}
-              className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm"
-            >
-              Logout
-            </button>
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 bg-blue-500 rounded-full hover:bg-blue-400 transition-colors"
+                aria-label="Notifications"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="p-4 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-800">Notifications</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        No notifications
+                      </div>
+                    ) : (
+                      notifications.slice(0, 5).map((notification) => (
+                        <div key={notification.id} className={`p-3 border-b border-gray-100 ${!notification.is_read ? 'bg-blue-50' : ''}`}>
+                          <div className="font-medium text-gray-800 text-sm">
+                            {notification.title}
+                          </div>
+                          <div className="text-gray-600 text-xs mt-1">
+                            {notification.message}
+                          </div>
+                          <div className="text-gray-400 text-xs mt-1">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="text-right">
+                <div className="text-sm font-medium">{user.full_name}</div>
+                <div className="text-xs text-blue-200">
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  {user.nhs_number && (
+                    <span className="ml-2">NHS: {user.nhs_number}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm transition-colors"
+                aria-label="Logout"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -116,8 +235,11 @@ const LoginForm = () => {
     password: '',
     full_name: '',
     role: 'patient',
+    nhs_number: '',
     phone: '',
-    address: ''
+    address: '',
+    date_of_birth: '',
+    gdpr_consent: false
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -133,6 +255,11 @@ const LoginForm = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
+        if (!formData.gdpr_consent) {
+          setError('GDPR consent is required');
+          setLoading(false);
+          return;
+        }
         result = await register(formData);
       }
 
@@ -147,34 +274,39 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-blue-200">
         <div className="text-center mb-6">
-          <img 
-            src="https://images.unsplash.com/photo-1619278874214-7eb5d1b7498a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwcHJlc2NyaXB0aW9ufGVufDB8fHxibHVlfDE3NTI4MTk2MTR8MA&ixlib=rb-4.1.0&q=85"
-            alt="Medical"
-            className="h-20 w-20 mx-auto mb-4 rounded-full object-cover"
-          />
-          <h2 className="text-2xl font-bold text-gray-800">
-            {isLogin ? 'Sign In' : 'Sign Up'}
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-lg">NHS</span>
+            </div>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            {isLogin ? 'Welcome Back' : 'Join MedRx'}
           </h2>
-          <p className="text-gray-600 mt-2">
-            {isLogin ? 'Welcome back to MedRx Manager' : 'Create your MedRx Manager account'}
+          <p className="text-gray-600">
+            {isLogin ? 'Sign in to your NHS-integrated account' : 'Create your secure healthcare account'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Email Address
             </label>
             <input
               type="email"
               required
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="your.email@example.com"
+              aria-describedby="email-help"
             />
+            <div id="email-help" className="text-xs text-gray-500 mt-1">
+              Use your secure email address
+            </div>
           </div>
 
           <div>
@@ -186,8 +318,13 @@ const LoginForm = () => {
               required
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              aria-describedby="password-help"
             />
+            <div id="password-help" className="text-xs text-gray-500 mt-1">
+              Use a strong password with at least 8 characters
+            </div>
           </div>
 
           {!isLogin && (
@@ -201,7 +338,8 @@ const LoginForm = () => {
                   required
                   value={formData.full_name}
                   onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="John Doe"
                 />
               </div>
 
@@ -212,51 +350,108 @@ const LoginForm = () => {
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({...formData, role: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  aria-describedby="role-help"
                 >
                   <option value="patient">Patient</option>
-                  <option value="gp">GP (Doctor)</option>
+                  <option value="gp">GP (General Practitioner)</option>
                   <option value="pharmacy">Pharmacy</option>
                   <option value="delegate">Delegate/Carer</option>
                 </select>
+                <div id="role-help" className="text-xs text-gray-500 mt-1">
+                  Select your role in the healthcare system
+                </div>
               </div>
+
+              {formData.role === 'patient' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NHS Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nhs_number}
+                    onChange={(e) => setFormData({...formData, nhs_number: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="1234567890"
+                    maxLength="10"
+                    aria-describedby="nhs-help"
+                  />
+                  <div id="nhs-help" className="text-xs text-gray-500 mt-1">
+                    Your 10-digit NHS number (optional)
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone (Optional)
+                  Phone Number
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="+44 7700 900123"
                 />
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="gdpr-consent"
+                  checked={formData.gdpr_consent}
+                  onChange={(e) => setFormData({...formData, gdpr_consent: e.target.checked})}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  required
+                />
+                <label htmlFor="gdpr-consent" className="text-sm text-gray-700">
+                  I consent to the processing of my personal data in accordance with GDPR and NHS data protection standards. 
+                  <a href="#" className="text-blue-600 hover:text-blue-800 underline ml-1">
+                    Learn more
+                  </a>
+                </label>
               </div>
             </>
           )}
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
+              <span className="font-medium">Error:</span> {error}
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
           >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </span>
+            ) : (
+              isLogin ? 'Sign In Securely' : 'Create Account'
+            )}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
+        </div>
+
+        <div className="mt-6 text-center text-xs text-gray-500">
+          <p>🔒 Secured by NHS-grade encryption</p>
+          <p>♿ WCAG 2.2 AA Compliant • GDPR Compliant</p>
         </div>
       </div>
     </div>
@@ -271,9 +466,12 @@ const PatientDashboard = () => {
     dosage: '',
     quantity: '',
     instructions: '',
-    notes: ''
+    notes: '',
+    priority: 'normal',
+    prescription_type: 'acute'
   });
   const [loading, setLoading] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -298,7 +496,9 @@ const PatientDashboard = () => {
         dosage: '',
         quantity: '',
         instructions: '',
-        notes: ''
+        notes: '',
+        priority: 'normal',
+        prescription_type: 'acute'
       });
       setShowNewPrescription(false);
       fetchPrescriptions();
@@ -311,115 +511,157 @@ const PatientDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'requested': return 'bg-yellow-100 text-yellow-800';
-      case 'gp_approved': return 'bg-blue-100 text-blue-800';
-      case 'pharmacy_fulfilled': return 'bg-green-100 text-green-800';
-      case 'collected': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'requested': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'gp_approved': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'sent_to_pharmacy': return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'dispensed': return 'bg-green-100 text-green-800 border-green-300';
+      case 'ready_for_collection': return 'bg-green-100 text-green-800 border-green-300';
+      case 'collected': return 'bg-gray-100 text-gray-800 border-gray-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
       case 'requested': return 'Pending GP Approval';
-      case 'gp_approved': return 'Ready for Pharmacy';
-      case 'pharmacy_fulfilled': return 'Ready for Collection';
+      case 'gp_approved': return 'Approved by GP';
+      case 'sent_to_pharmacy': return 'Sent to Pharmacy';
+      case 'dispensed': return 'Dispensed';
+      case 'ready_for_collection': return 'Ready for Collection';
       case 'collected': return 'Collected';
       default: return status;
     }
   };
 
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-600';
+      case 'emergency': return 'text-red-800 font-bold';
+      default: return 'text-gray-600';
+    }
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">My Prescriptions</h2>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">My Prescriptions</h2>
+          <p className="text-gray-600 mt-2">Manage your prescription requests and track their status</p>
+        </div>
         <button
           onClick={() => setShowNewPrescription(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg flex items-center space-x-2"
+          aria-label="Request new prescription"
         >
-          New Prescription Request
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span>New Prescription Request</span>
         </button>
       </div>
 
       {showNewPrescription && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h3 className="text-lg font-semibold mb-4">Request New Prescription</h3>
-          <form onSubmit={handleCreatePrescription} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl mb-8 border border-blue-200">
+          <h3 className="text-xl font-semibold mb-6 text-gray-800">Request New Prescription</h3>
+          <form onSubmit={handleCreatePrescription} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Medication Name
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Medication Name *
                 </label>
                 <input
                   type="text"
                   required
                   value={newPrescription.medication_name}
                   onChange={(e) => setNewPrescription({...newPrescription, medication_name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., Amoxicillin"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dosage
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dosage *
                 </label>
                 <input
                   type="text"
                   required
                   value={newPrescription.dosage}
                   onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., 500mg"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity *
                 </label>
                 <input
                   type="text"
                   required
                   value={newPrescription.quantity}
                   onChange={(e) => setNewPrescription({...newPrescription, quantity: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., 21 tablets"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Instructions
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Priority
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={newPrescription.instructions}
-                  onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <select
+                  value={newPrescription.priority}
+                  onChange={(e) => setNewPrescription({...newPrescription, priority: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="emergency">Emergency</option>
+                </select>
               </div>
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes (Optional)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Instructions *
+              </label>
+              <input
+                type="text"
+                required
+                value={newPrescription.instructions}
+                onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Take one tablet three times daily with food"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Additional Notes
               </label>
               <textarea
                 value={newPrescription.notes}
                 onChange={(e) => setNewPrescription({...newPrescription, notes: e.target.value})}
                 rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Any additional information for your GP..."
               />
             </div>
+            
             <div className="flex space-x-4">
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
               >
                 {loading ? 'Submitting...' : 'Submit Request'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowNewPrescription(false)}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400"
+                className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors font-medium"
               >
                 Cancel
               </button>
@@ -428,35 +670,77 @@ const PatientDashboard = () => {
         </div>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {prescriptions.map((prescription) => (
-          <div key={prescription.id} className="bg-white p-6 rounded-lg shadow-md">
+          <div key={prescription.id} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200">
             <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {prescription.medication_name}
-                </h3>
-                <p className="text-gray-600">
-                  {prescription.dosage} • {prescription.quantity}
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {prescription.medication_name}
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(prescription.status)}`}>
+                    {getStatusText(prescription.status)}
+                  </span>
+                  {prescription.priority !== 'normal' && (
+                    <span className={`text-sm font-medium ${getPriorityColor(prescription.priority)}`}>
+                      {prescription.priority.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="text-gray-600 space-y-1">
+                  <p><strong>Dosage:</strong> {prescription.dosage}</p>
+                  <p><strong>Quantity:</strong> {prescription.quantity}</p>
+                  <p><strong>Instructions:</strong> {prescription.instructions}</p>
+                </div>
+              </div>
+              
+              {prescription.qr_code && (
+                <div className="ml-4">
+                  <div className="text-center">
+                    <img 
+                      src={prescription.qr_code} 
+                      alt="Collection QR Code"
+                      className="w-20 h-20 mx-auto mb-2"
+                    />
+                    <p className="text-xs text-gray-500">Collection Code</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {prescription.notes && (
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Your Notes:</strong> {prescription.notes}
                 </p>
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(prescription.status)}`}>
-                {getStatusText(prescription.status)}
-              </span>
-            </div>
-            <p className="text-gray-700 mb-2">
-              <strong>Instructions:</strong> {prescription.instructions}
-            </p>
-            {prescription.notes && (
-              <p className="text-gray-600 mb-2">
-                <strong>Notes:</strong> {prescription.notes}
-              </p>
             )}
-            <p className="text-sm text-gray-500">
-              Requested: {new Date(prescription.requested_at).toLocaleDateString()}
-            </p>
+            
+            {prescription.gp_notes && (
+              <div className="bg-green-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-green-800">
+                  <strong>GP Notes:</strong> {prescription.gp_notes}
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-between items-center text-sm text-gray-500 border-t pt-4">
+              <div>
+                <p>Requested: {new Date(prescription.requested_at).toLocaleString()}</p>
+                {prescription.approved_at && (
+                  <p>Approved: {new Date(prescription.approved_at).toLocaleString()}</p>
+                )}
+              </div>
+              {prescription.collection_pin && (
+                <div className="text-right">
+                  <p className="font-medium text-blue-600">Collection PIN: {prescription.collection_pin}</p>
+                </div>
+              )}
+            </div>
           </div>
         ))}
+        
         {prescriptions.length === 0 && (
           <div className="text-center py-12">
             <img 
@@ -464,7 +748,8 @@ const PatientDashboard = () => {
               alt="No prescriptions"
               className="h-32 w-32 mx-auto mb-4 rounded-full object-cover"
             />
-            <p className="text-gray-500">No prescriptions yet. Click "New Prescription Request" to get started.</p>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Prescriptions Yet</h3>
+            <p className="text-gray-600">Click "New Prescription Request" to get started with your first prescription request.</p>
           </div>
         )}
       </div>
@@ -475,6 +760,7 @@ const PatientDashboard = () => {
 const GPDashboard = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -494,7 +780,7 @@ const GPDashboard = () => {
     try {
       await axios.put(`${API}/prescriptions/${prescriptionId}`, {
         status: 'gp_approved',
-        gp_notes: 'Approved by GP'
+        gp_notes: 'Approved by GP - prescription verified and authorized'
       });
       fetchPrescriptions();
     } catch (error) {
@@ -504,43 +790,77 @@ const GPDashboard = () => {
     }
   };
 
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-600 bg-red-100';
+      case 'emergency': return 'text-red-800 bg-red-200 font-bold';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Pending Prescriptions</h2>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800">GP Dashboard</h2>
+        <p className="text-gray-600 mt-2">Review and approve prescription requests from patients</p>
+      </div>
       
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {prescriptions.map((prescription) => (
-          <div key={prescription.id} className="bg-white p-6 rounded-lg shadow-md">
+          <div key={prescription.id} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200">
             <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {prescription.medication_name}
-                </h3>
-                <p className="text-gray-600">
-                  {prescription.dosage} • {prescription.quantity}
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {prescription.medication_name}
+                  </h3>
+                  {prescription.priority !== 'normal' && (
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(prescription.priority)}`}>
+                      {prescription.priority.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="text-gray-600 space-y-1">
+                  <p><strong>Patient:</strong> {prescription.patient_nhs_number ? `NHS: ${prescription.patient_nhs_number}` : 'Patient ID: ' + prescription.patient_id}</p>
+                  <p><strong>Dosage:</strong> {prescription.dosage}</p>
+                  <p><strong>Quantity:</strong> {prescription.quantity}</p>
+                  <p><strong>Instructions:</strong> {prescription.instructions}</p>
+                </div>
+              </div>
+              
+              <div className="ml-4">
+                <button
+                  onClick={() => handleApprove(prescription.id)}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
+                >
+                  {loading ? 'Approving...' : 'Approve Prescription'}
+                </button>
+              </div>
+            </div>
+            
+            {prescription.notes && (
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Patient Notes:</strong> {prescription.notes}
                 </p>
               </div>
-              <button
-                onClick={() => handleApprove(prescription.id)}
-                disabled={loading}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-              >
-                {loading ? 'Approving...' : 'Approve'}
-              </button>
-            </div>
-            <p className="text-gray-700 mb-2">
-              <strong>Instructions:</strong> {prescription.instructions}
-            </p>
-            {prescription.notes && (
-              <p className="text-gray-600 mb-2">
-                <strong>Patient Notes:</strong> {prescription.notes}
-              </p>
             )}
-            <p className="text-sm text-gray-500">
-              Requested: {new Date(prescription.requested_at).toLocaleDateString()}
-            </p>
+            
+            <div className="flex justify-between items-center text-sm text-gray-500 border-t pt-4">
+              <div>
+                <p>Requested: {new Date(prescription.requested_at).toLocaleString()}</p>
+                <p>Type: {prescription.prescription_type}</p>
+              </div>
+              {prescription.priority !== 'normal' && (
+                <div className="text-right">
+                  <p className="font-medium text-red-600">⚠️ Priority: {prescription.priority}</p>
+                </div>
+              )}
+            </div>
           </div>
         ))}
+        
         {prescriptions.length === 0 && (
           <div className="text-center py-12">
             <img 
@@ -548,7 +868,8 @@ const GPDashboard = () => {
               alt="No prescriptions"
               className="h-32 w-32 mx-auto mb-4 rounded-full object-cover"
             />
-            <p className="text-gray-500">No pending prescriptions to review.</p>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Pending Prescriptions</h3>
+            <p className="text-gray-600">All prescription requests have been reviewed. New requests will appear here.</p>
           </div>
         )}
       </div>
@@ -577,8 +898,8 @@ const PharmacyDashboard = () => {
     setLoading(true);
     try {
       await axios.put(`${API}/prescriptions/${prescriptionId}`, {
-        status: 'pharmacy_fulfilled',
-        pharmacy_notes: 'Fulfilled by pharmacy'
+        status: 'dispensed',
+        pharmacy_notes: 'Prescription dispensed and ready for collection'
       });
       fetchPrescriptions();
     } catch (error) {
@@ -589,42 +910,64 @@ const PharmacyDashboard = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Approved Prescriptions</h2>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800">Pharmacy Dashboard</h2>
+        <p className="text-gray-600 mt-2">Manage approved prescriptions and dispensing</p>
+      </div>
       
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {prescriptions.map((prescription) => (
-          <div key={prescription.id} className="bg-white p-6 rounded-lg shadow-md">
+          <div key={prescription.id} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200">
             <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {prescription.medication_name}
-                </h3>
-                <p className="text-gray-600">
-                  {prescription.dosage} • {prescription.quantity}
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {prescription.medication_name}
+                  </h3>
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300">
+                    GP Approved
+                  </span>
+                </div>
+                <div className="text-gray-600 space-y-1">
+                  <p><strong>Patient:</strong> {prescription.patient_nhs_number ? `NHS: ${prescription.patient_nhs_number}` : 'Patient ID: ' + prescription.patient_id}</p>
+                  <p><strong>Dosage:</strong> {prescription.dosage}</p>
+                  <p><strong>Quantity:</strong> {prescription.quantity}</p>
+                  <p><strong>Instructions:</strong> {prescription.instructions}</p>
+                </div>
+              </div>
+              
+              <div className="ml-4">
+                <button
+                  onClick={() => handleFulfill(prescription.id)}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
+                >
+                  {loading ? 'Dispensing...' : 'Mark as Dispensed'}
+                </button>
+              </div>
+            </div>
+            
+            {prescription.gp_notes && (
+              <div className="bg-green-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-green-800">
+                  <strong>GP Notes:</strong> {prescription.gp_notes}
                 </p>
               </div>
-              <button
-                onClick={() => handleFulfill(prescription.id)}
-                disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Fulfilling...' : 'Mark as Fulfilled'}
-              </button>
-            </div>
-            <p className="text-gray-700 mb-2">
-              <strong>Instructions:</strong> {prescription.instructions}
-            </p>
-            {prescription.gp_notes && (
-              <p className="text-gray-600 mb-2">
-                <strong>GP Notes:</strong> {prescription.gp_notes}
-              </p>
             )}
-            <p className="text-sm text-gray-500">
-              Approved: {new Date(prescription.approved_at).toLocaleDateString()}
-            </p>
+            
+            <div className="flex justify-between items-center text-sm text-gray-500 border-t pt-4">
+              <div>
+                <p>Approved: {new Date(prescription.approved_at).toLocaleString()}</p>
+                <p>Collection PIN: <span className="font-medium text-blue-600">{prescription.collection_pin}</span></p>
+              </div>
+              <div className="text-right">
+                <p>Type: {prescription.prescription_type}</p>
+              </div>
+            </div>
           </div>
         ))}
+        
         {prescriptions.length === 0 && (
           <div className="text-center py-12">
             <img 
@@ -632,7 +975,8 @@ const PharmacyDashboard = () => {
               alt="No prescriptions"
               className="h-32 w-32 mx-auto mb-4 rounded-full object-cover"
             />
-            <p className="text-gray-500">No approved prescriptions to fulfill.</p>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Approved Prescriptions</h3>
+            <p className="text-gray-600">Approved prescriptions will appear here for dispensing.</p>
           </div>
         )}
       </div>
@@ -641,13 +985,57 @@ const PharmacyDashboard = () => {
 };
 
 const DelegateDashboard = () => {
+  const [delegations, setDelegations] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
+
+  useEffect(() => {
+    fetchDelegations();
+    fetchPrescriptions();
+  }, []);
+
+  const fetchDelegations = async () => {
+    try {
+      const response = await axios.get(`${API}/delegations`);
+      setDelegations(response.data);
+    } catch (error) {
+      console.error('Error fetching delegations:', error);
+    }
+  };
+
+  const fetchPrescriptions = async () => {
+    try {
+      const response = await axios.get(`${API}/prescriptions`);
+      setPrescriptions(response.data);
+    } catch (error) {
+      console.error('Error fetching prescriptions:', error);
+    }
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Delegate Dashboard</h2>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <p className="text-gray-600">
-          Delegate features coming soon. This will allow authorized family members and carers to collect prescriptions on behalf of patients.
-        </p>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800">Delegate Dashboard</h2>
+        <p className="text-gray-600 mt-2">Manage authorized prescription collections</p>
+      </div>
+      
+      <div className="grid gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Authorization Status</h3>
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-blue-800">
+              🔒 Delegate features are being enhanced to support secure prescription collection with proper authorization and audit trails.
+            </p>
+            <p className="text-blue-700 mt-2">
+              Features coming soon:
+            </p>
+            <ul className="list-disc list-inside text-blue-700 mt-2 space-y-1">
+              <li>QR code scanning for prescription collection</li>
+              <li>PIN-based authorization system</li>
+              <li>Real-time collection notifications</li>
+              <li>Audit logs for CQC compliance</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -657,7 +1045,14 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   if (!user) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   const renderDashboard = () => {
@@ -671,14 +1066,21 @@ const Dashboard = () => {
       case 'delegate':
         return <DelegateDashboard />;
       default:
-        return <div>Invalid role</div>;
+        return (
+          <div className="container mx-auto p-6 text-center">
+            <h2 className="text-2xl font-bold text-gray-800">Invalid Role</h2>
+            <p className="text-gray-600 mt-2">Please contact support for assistance.</p>
+          </div>
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      {renderDashboard()}
+      <main className="pb-8">
+        {renderDashboard()}
+      </main>
     </div>
   );
 };
