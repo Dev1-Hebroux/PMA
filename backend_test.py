@@ -93,10 +93,13 @@ class BackendTester:
         """Test user registration for all roles"""
         self.log("Testing user registration for all roles...")
         
+        # Generate unique emails using timestamp
+        timestamp = str(int(time.time()))
+        
         test_users = [
             {
                 "role": "patient",
-                "email": "sarah.johnson@email.com",
+                "email": f"sarah.johnson.{timestamp}@email.com",
                 "password": "SecurePass123!",
                 "full_name": "Sarah Johnson",
                 "phone": "+44 7700 900123",
@@ -104,7 +107,7 @@ class BackendTester:
             },
             {
                 "role": "gp", 
-                "email": "dr.smith@medicalpractice.com",
+                "email": f"dr.smith.{timestamp}@medicalpractice.com",
                 "password": "DoctorPass456!",
                 "full_name": "Dr. Michael Smith",
                 "phone": "+44 7700 900456",
@@ -113,7 +116,7 @@ class BackendTester:
             },
             {
                 "role": "pharmacy",
-                "email": "manager@wellnesspharmacy.com", 
+                "email": f"manager.{timestamp}@wellnesspharmacy.com", 
                 "password": "PharmacyPass789!",
                 "full_name": "Wellness Pharmacy",
                 "phone": "+44 7700 900789",
@@ -122,7 +125,7 @@ class BackendTester:
             },
             {
                 "role": "delegate",
-                "email": "emma.wilson@email.com",
+                "email": f"emma.wilson.{timestamp}@email.com",
                 "password": "DelegatePass321!",
                 "full_name": "Emma Wilson",
                 "phone": "+44 7700 900321",
