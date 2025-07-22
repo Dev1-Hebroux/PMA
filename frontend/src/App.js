@@ -93,7 +93,32 @@ const AuthProvider = ({ children }) => {
       return { success: true, role };
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: error.response?.data?.detail || 'Registration failed' };
+      
+      // Handle different types of errors
+      let errorMessage = 'Registration failed';
+      
+      if (error.response?.data?.detail) {
+        // Handle single error message
+        if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        } else if (Array.isArray(error.response.data.detail)) {
+          // Handle Pydantic validation errors
+          errorMessage = error.response.data.detail.map(err => {
+            if (typeof err === 'string') return err;
+            if (err.msg) return `${err.loc ? err.loc.join('.') + ': ' : ''}${err.msg}`;
+            return 'Validation error';
+          }).join('; ');
+        } else if (typeof error.response.data.detail === 'object') {
+          // Handle object errors
+          errorMessage = JSON.stringify(error.response.data.detail);
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 
