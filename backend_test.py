@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 
 # Configuration
-BASE_URL = "https://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com/api"
+BASE_URL = "https://ab6009e8-2e3e-4cd0-b3b8-a452a86b19f9.preview.emergentagent.com/api"
 WS_URL = "wss://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com/ws"
 TIMEOUT = 30
 

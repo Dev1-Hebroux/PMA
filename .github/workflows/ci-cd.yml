@@ -159,7 +159,7 @@ jobs:
         echo "🚀 PMA is ready for deployment!"
         echo "✅ All quality checks passed"
         echo "📊 Repository: ${{ github.repository }}"
-        echo "🔗 Live Demo: https://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com"
+        echo "🔗 Live Demo: https://ab6009e8-2e3e-4cd0-b3b8-a452a86b19f9.preview.emergentagent.com"
         echo "📚 Documentation: Available in docs/ directory"
         echo "🐳 Docker: Use docker-compose up to run locally"
         

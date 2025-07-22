@@ -270,7 +270,7 @@ Use these profiles to test all workflows in your PMA app. Each profile is design
 
 ## 🚀 **Getting Started**
 
-1. **Visit**: https://f6b00ae1-f513-4038-91eb-ddf68c5cea24.preview.emergentagent.com
+1. **Visit**: https://ab6009e8-2e3e-4cd0-b3b8-a452a86b19f9.preview.emergentagent.com
 2. **Register**: Start with any profile above
 3. **Test**: Follow the scenarios to test different workflows
 4. **Verify**: Check that all features work as expected
