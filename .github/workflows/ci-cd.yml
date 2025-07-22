@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -55,62 +55,46 @@ jobs:
         cache-dependency-path: frontend/yarn.lock
     
     - name: Install frontend dependencies
-      run: |
-        cd frontend
-        yarn install --frozen-lockfile
+      working-directory: frontend
+      run: yarn install --frozen-lockfile
     
-    - name: Verify installation
+    - name: Verify Node.js setup
+      working-directory: frontend
       run: |
-        cd frontend
-        echo "✅ Frontend dependencies installed successfully"
-        yarn list --depth=0
-        echo "✅ Dependencies verified"
-    
-    - name: Basic frontend check
-      env:
-        REACT_APP_BACKEND_URL: http://localhost:8001
-        CI: true
-        NODE_OPTIONS: "--max-old-space-size=4096"
-      run: |
-        cd frontend
-        node -e "console.log('Node.js version:', process.version); console.log('✅ Node.js is working'); process.exit(0)"
-        echo "✅ Frontend health check passed"
+        echo "Node version: $(node --version)"
+        echo "Yarn version: $(yarn --version)"
+        echo "✅ Environment setup verified"
     
     - name: Build frontend
+      working-directory: frontend
       env:
         CI: true
         NODE_OPTIONS: "--max-old-space-size=4096"
         REACT_APP_BACKEND_URL: http://localhost:8001
+        GENERATE_SOURCEMAP: false
       run: |
-        cd frontend
-        echo "🏗️ Starting frontend build..."
+        echo "🏗️ Building frontend..."
         yarn build
-        echo "✅ Frontend build completed successfully"
+        echo "✅ Build completed successfully"
     
     - name: Run frontend tests
+      working-directory: frontend
       env:
         CI: true
         NODE_OPTIONS: "--max-old-space-size=4096"
       run: |
-        cd frontend
-        echo "🧪 Running frontend tests..."
+        echo "🧪 Running tests..."
         yarn test:ci
-        echo "✅ Frontend tests completed"
+        echo "✅ Tests completed"
     
-    - name: Verify build output
+    - name: Verify build artifacts
+      working-directory: frontend
       run: |
-        cd frontend
-        if [ -d "build" ]; then
-          echo "✅ Build directory created"
-          ls -la build/
-          if [ -f "build/index.html" ]; then
-            echo "✅ Build files generated successfully"
-          else
-            echo "❌ Build index.html not found"
-            exit 1
-          fi
+        if [ -d "build" ] && [ -f "build/index.html" ]; then
+          echo "✅ Build artifacts created successfully"
+          echo "Build size: $(du -sh build/)"
         else
-          echo "❌ Build directory not found"
+          echo "❌ Build artifacts missing"
           exit 1
         fi
 
