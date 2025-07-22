@@ -362,7 +362,98 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     return User(**user)
 
-# Utility functions
+# Automated reminder system
+async def check_stalled_prescriptions():
+    """Check for stalled prescriptions and send reminders"""
+    try:
+        # Find prescriptions that are stalled (pending GP approval for > 24 hours)
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        
+        stalled_prescriptions = await db.prescriptions.find({
+            "status": PrescriptionStatus.REQUESTED,
+            "requested_at": {"$lt": twenty_four_hours_ago}
+        }).to_list(100)
+        
+        for prescription in stalled_prescriptions:
+            prescription_obj = Prescription(**prescription)
+            
+            # Send reminder to patient
+            await send_notification(
+                prescription_obj.patient_id,
+                NotificationType.REMINDER,
+                "Prescription Pending Review",
+                f"Your prescription for {prescription_obj.medication_name} is still pending GP approval. We've sent a reminder to your GP.",
+                prescription_id=prescription_obj.id
+            )
+            
+            # Send reminder to GP (if assigned) or all GPs
+            if prescription_obj.gp_id:
+                # Find the specific GP
+                gp = await db.users.find_one({"id": prescription_obj.gp_id})
+                if gp:
+                    await send_notification(
+                        gp["id"],
+                        NotificationType.REMINDER,
+                        "Prescription Awaiting Your Review",
+                        f"Prescription for {prescription_obj.medication_name} has been pending for over 24 hours. Please review.",
+                        prescription_id=prescription_obj.id
+                    )
+            else:
+                # Send to all active GPs
+                gps = await db.users.find({"role": UserRole.GP, "is_active": True}).to_list(50)
+                for gp in gps:
+                    await send_notification(
+                        gp["id"],
+                        NotificationType.REMINDER,
+                        "Prescription Awaiting Review",
+                        f"Prescription for {prescription_obj.medication_name} has been pending for over 24 hours. Please review.",
+                        prescription_id=prescription_obj.id
+                    )
+        
+        # Find prescriptions stalled at pharmacy (GP approved for > 12 hours)
+        twelve_hours_ago = datetime.utcnow() - timedelta(hours=12)
+        
+        pharmacy_stalled = await db.prescriptions.find({
+            "status": PrescriptionStatus.GP_APPROVED,
+            "approved_at": {"$lt": twelve_hours_ago}
+        }).to_list(100)
+        
+        for prescription in pharmacy_stalled:
+            prescription_obj = Prescription(**prescription)
+            
+            # Send reminder to patient
+            await send_notification(
+                prescription_obj.patient_id,
+                NotificationType.REMINDER,
+                "Prescription Ready for Pharmacy",
+                f"Your approved prescription for {prescription_obj.medication_name} is ready for pharmacy processing.",
+                prescription_id=prescription_obj.id
+            )
+            
+            # Send reminder to all pharmacies
+            pharmacies = await db.users.find({"role": UserRole.PHARMACY, "is_active": True}).to_list(50)
+            for pharmacy in pharmacies:
+                await send_notification(
+                    pharmacy["id"],
+                    NotificationType.REMINDER,
+                    "Prescription Awaiting Fulfillment",
+                    f"Prescription for {prescription_obj.medication_name} has been approved and is awaiting fulfillment.",
+                    prescription_id=prescription_obj.id
+                )
+                
+        logger.info(f"Processed {len(stalled_prescriptions)} stalled prescriptions and {len(pharmacy_stalled)} pharmacy-stalled prescriptions")
+        
+    except Exception as e:
+        logger.error(f"Error checking stalled prescriptions: {e}")
+
+@api_router.post("/prescriptions/check-reminders")
+async def trigger_reminder_check(current_user: User = Depends(get_current_user)):
+    """Manually trigger reminder check (for admin use)"""
+    if current_user.role not in [UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    await check_stalled_prescriptions()
+    return {"message": "Reminder check completed"}
 def generate_qr_code(data: str) -> str:
     """Generate QR code and return as base64 string"""
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
