@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  pma-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "8001:8001"
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017/
+      - DB_NAME=prescription_db
+      - SECRET_KEY=your-production-secret-key-here
+      - REACT_APP_BACKEND_URL=http://localhost:8001
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    volumes:
+      - ./logs:/var/log/supervisor
+
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=prescription_db
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  default:
+    driver: bridge
