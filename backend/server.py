@@ -871,13 +871,16 @@ async def update_prescription(prescription_id: str, prescription_data: Prescript
             "gp_notes": prescription_data.gp_notes
         }
         
-        # Send notification to patient
-        await send_notification(
-            prescription_obj.patient_id,
-            NotificationType.PRESCRIPTION_APPROVED,
-            "Prescription Approved",
-            f"Your prescription for {prescription_obj.medication_name} has been approved by your GP."
-        )
+        # Send notification to patient (safely)
+        try:
+            await simple_send_notification(
+                prescription_obj.patient_id,
+                "PRESCRIPTION_APPROVED",
+                "Prescription Approved",
+                f"Your prescription for {prescription_obj.medication_name} has been approved by your GP."
+            )
+        except Exception as notif_error:
+            logger.warning(f"Notification creation failed: {notif_error}")
         
     elif current_user.role == UserRole.PHARMACY and prescription_data.status == PrescriptionStatus.DISPENSED:
         update_data = {
@@ -887,22 +890,28 @@ async def update_prescription(prescription_id: str, prescription_data: Prescript
             "pharmacy_notes": prescription_data.pharmacy_notes
         }
         
-        # Send notification to patient
-        await send_notification(
-            prescription_obj.patient_id,
-            NotificationType.PRESCRIPTION_READY,
-            "Prescription Ready for Collection",
-            f"Your prescription for {prescription_obj.medication_name} is ready for collection."
-        )
+        # Send notification to patient (safely)
+        try:
+            await simple_send_notification(
+                prescription_obj.patient_id,
+                "PRESCRIPTION_READY",
+                "Prescription Ready for Collection",
+                f"Your prescription for {prescription_obj.medication_name} is ready for collection."
+            )
+        except Exception as notif_error:
+            logger.warning(f"Notification creation failed: {notif_error}")
         
     else:
         raise HTTPException(status_code=403, detail="Invalid status update for your role")
     
     await db.prescriptions.update_one({"id": prescription_id}, {"$set": update_data})
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.UPDATE, "prescription", prescription_id, 
-                          {"action": "status_update", "new_status": prescription_data.status})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "UPDATE", "prescription", prescription_id, 
+                                    {"action": "status_update", "new_status": str(prescription_data.status)})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     # Get updated prescription
     updated_prescription = await db.prescriptions.find_one({"id": prescription_id})
