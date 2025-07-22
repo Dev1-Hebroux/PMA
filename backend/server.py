@@ -815,9 +815,12 @@ async def get_prescription(prescription_id: str, current_user: User = Depends(ge
     if current_user.role == UserRole.PATIENT and prescription_obj.patient_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.VIEW, "prescription", prescription_id, 
-                          {"action": "prescription_viewed"})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "VIEW", "prescription", prescription_id, 
+                                    {"action": "prescription_viewed"})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     return prescription_obj
 
