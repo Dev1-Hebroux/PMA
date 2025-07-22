@@ -48,9 +48,9 @@
   "author": "Innovating Chaos",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Innovating-Chaos/PMA/issues"
+    "url": "https://github.com/Dev1-Hebroux/PMA/issues"
   },
-  "homepage": "https://github.com/Innovating-Chaos/PMA#readme",
+  "homepage": "https://github.com/Dev1-Hebroux/PMA#readme",
   "engines": {
     "node": ">=18.0.0",
     "python": ">=3.11.0"
