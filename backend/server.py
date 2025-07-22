@@ -670,9 +670,12 @@ async def update_user_profile(user_updates: dict, current_user: User = Depends(g
     
     await db.users.update_one({"id": current_user.id}, {"$set": user_updates})
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.UPDATE, "user", current_user.id, 
-                          {"action": "profile_update", "fields": list(user_updates.keys())})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "UPDATE", "user", current_user.id, 
+                                    {"action": "profile_update", "fields": list(user_updates.keys())})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     return {"message": "Profile updated successfully"}
 
