@@ -330,7 +330,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Enhanced delegation system"
+    - "CI/CD pipeline configuration"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
