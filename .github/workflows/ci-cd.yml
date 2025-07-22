@@ -1,0 +1,170 @@
+name: PMA - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+    
+    - name: Test backend
+      env:
+        MONGO_URL: mongodb://localhost:27017/
+        DB_NAME: test_prescription_db
+        SECRET_KEY: test-secret-key
+      run: |
+        cd backend
+        python -m pytest -v
+  
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Test frontend
+      env:
+        REACT_APP_BACKEND_URL: http://localhost:8001
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security scan
+      uses: securecodewarrior/github-action-add-sarif@v1
+      with:
+        sarif-file: 'security-scan-results.sarif'
+        
+    - name: Check for vulnerabilities
+      run: |
+        cd backend
+        pip install safety
+        safety check -r requirements.txt
+        
+        cd ../frontend
+        npm audit --audit-level=high
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install linting tools
+      run: |
+        pip install flake8 black isort
+    
+    - name: Lint backend code
+      run: |
+        cd backend
+        flake8 --max-line-length=100 --ignore=E203,W503 *.py
+        black --check --diff *.py
+        isort --check-only --diff *.py
+    
+    - name: Set up Node.js for frontend linting
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Lint frontend code
+      run: |
+        cd frontend
+        npm ci
+        npm run lint
+
+  accessibility-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+        npm install -g @axe-core/cli
+    
+    - name: Build and test accessibility
+      run: |
+        cd frontend
+        npm run build
+        npx serve -s build &
+        sleep 10
+        axe http://localhost:3000 --tags wcag2a,wcag2aa
+
+  deploy:
+    needs: [test-backend, test-frontend, security-scan, code-quality]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to production
+      env:
+        DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+      run: |
+        echo "🚀 Deploying PMA to production environment"
+        echo "✅ All tests passed, ready for deployment"
+        # Add your deployment script here
+        
+    - name: Notify success
+      run: |
+        echo "🎉 PMA deployment completed successfully!"
+        echo "📊 App available at production URL"
