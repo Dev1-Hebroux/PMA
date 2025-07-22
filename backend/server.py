@@ -378,9 +378,9 @@ async def check_stalled_prescriptions():
             prescription_obj = Prescription(**prescription)
             
             # Send reminder to patient
-            await send_notification(
+            await simple_send_notification(
                 prescription_obj.patient_id,
-                NotificationType.REMINDER,
+                "REMINDER",
                 "Prescription Pending Review",
                 f"Your prescription for {prescription_obj.medication_name} is still pending GP approval. We've sent a reminder to your GP.",
                 prescription_id=prescription_obj.id
@@ -391,9 +391,9 @@ async def check_stalled_prescriptions():
                 # Find the specific GP
                 gp = await db.users.find_one({"id": prescription_obj.gp_id})
                 if gp:
-                    await send_notification(
+                    await simple_send_notification(
                         gp["id"],
-                        NotificationType.REMINDER,
+                        "REMINDER",
                         "Prescription Awaiting Your Review",
                         f"Prescription for {prescription_obj.medication_name} has been pending for over 24 hours. Please review.",
                         prescription_id=prescription_obj.id
@@ -402,9 +402,9 @@ async def check_stalled_prescriptions():
                 # Send to all active GPs
                 gps = await db.users.find({"role": UserRole.GP, "is_active": True}).to_list(50)
                 for gp in gps:
-                    await send_notification(
+                    await simple_send_notification(
                         gp["id"],
-                        NotificationType.REMINDER,
+                        "REMINDER",
                         "Prescription Awaiting Review",
                         f"Prescription for {prescription_obj.medication_name} has been pending for over 24 hours. Please review.",
                         prescription_id=prescription_obj.id
