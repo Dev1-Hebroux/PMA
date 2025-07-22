@@ -444,7 +444,6 @@ async def register(user_data: UserCreate):
         parsed_date_of_birth = None
         if user_data.date_of_birth and user_data.date_of_birth.strip():
             try:
-                from datetime import datetime
                 parsed_date_of_birth = datetime.fromisoformat(user_data.date_of_birth.strip())
             except (ValueError, TypeError):
                 # If date parsing fails, just ignore it for now
@@ -452,41 +451,52 @@ async def register(user_data: UserCreate):
         
         # Create new user
         password_hash = get_password_hash(user_data.password)
-        user = User(
-            email=user_data.email,
-            password_hash=password_hash,
-            full_name=user_data.full_name,
-            role=user_data.role,
-            nhs_number=user_data.nhs_number.strip() if user_data.nhs_number else None,
-            phone=user_data.phone,
-            address=user_data.address,
-            date_of_birth=parsed_date_of_birth,
-            gp_license_number=user_data.gp_license_number,
-            pharmacy_license_number=user_data.pharmacy_license_number,
-            ods_code=user_data.ods_code,
-            accessibility_requirements=user_data.accessibility_requirements,
-            gdpr_consent=user_data.gdpr_consent,
-            gdpr_consent_date=datetime.utcnow() if user_data.gdpr_consent else None
-        )
+        user_dict = {
+            "id": str(uuid.uuid4()),
+            "email": user_data.email,
+            "password_hash": password_hash,
+            "full_name": user_data.full_name,
+            "role": user_data.role,
+            "phone": user_data.phone,
+            "address": user_data.address,
+            "gp_license_number": user_data.gp_license_number,
+            "pharmacy_license_number": user_data.pharmacy_license_number,
+            "ods_code": user_data.ods_code,
+            "accessibility_requirements": user_data.accessibility_requirements,
+            "gdpr_consent": user_data.gdpr_consent,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "is_active": True
+        }
         
-        await db.users.insert_one(user.dict())
+        # Add optional fields only if they have values
+        if user_data.nhs_number and user_data.nhs_number.strip():
+            user_dict["nhs_number"] = user_data.nhs_number.strip()
+        
+        if parsed_date_of_birth:
+            user_dict["date_of_birth"] = parsed_date_of_birth
+            
+        if user_data.gdpr_consent:
+            user_dict["gdpr_consent_date"] = datetime.utcnow()
+        
+        await db.users.insert_one(user_dict)
         
         # Create audit log
-        await create_audit_log(user.id, AuditAction.CREATE, "user", user.id, 
-                              {"action": "user_registration", "role": user.role})
+        await create_audit_log(user_dict["id"], AuditAction.CREATE, "user", user_dict["id"], 
+                              {"action": "user_registration", "role": user_data.role})
         
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id, "role": user.role}, 
+            data={"sub": user_dict["id"], "role": user_data.role}, 
             expires_delta=access_token_expires
         )
         
         return Token(
             access_token=access_token, 
             token_type="bearer", 
-            user_id=user.id, 
-            role=user.role,
+            user_id=user_dict["id"], 
+            role=user_data.role,
             expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )
         
