@@ -313,7 +313,40 @@ const LoginForm = () => {
           setLoading(false);
           return;
         }
-        result = await register(formData);
+        
+        // Clean up the form data - only send non-empty values
+        const cleanFormData = {
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          role: formData.role,
+          gdpr_consent: formData.gdpr_consent
+        };
+        
+        // Only include optional fields if they have values
+        if (formData.nhs_number && formData.nhs_number.trim()) {
+          cleanFormData.nhs_number = formData.nhs_number.trim();
+        }
+        if (formData.phone && formData.phone.trim()) {
+          cleanFormData.phone = formData.phone.trim();
+        }
+        if (formData.address && formData.address.trim()) {
+          cleanFormData.address = formData.address.trim();
+        }
+        if (formData.date_of_birth && formData.date_of_birth.trim()) {
+          cleanFormData.date_of_birth = formData.date_of_birth.trim();
+        }
+        if (formData.gp_license_number && formData.gp_license_number.trim()) {
+          cleanFormData.gp_license_number = formData.gp_license_number.trim();
+        }
+        if (formData.pharmacy_license_number && formData.pharmacy_license_number.trim()) {
+          cleanFormData.pharmacy_license_number = formData.pharmacy_license_number.trim();
+        }
+        if (formData.ods_code && formData.ods_code.trim()) {
+          cleanFormData.ods_code = formData.ods_code.trim();
+        }
+        
+        result = await register(cleanFormData);
       }
 
       if (!result.success) {
