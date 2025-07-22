@@ -48,9 +48,9 @@
   "author": "Innovating Chaos",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/prescription-management-app/issues"
+    "url": "https://github.com/Innovating-Chaos/PMA/issues"
   },
-  "homepage": "https://github.com/YOUR_USERNAME/prescription-management-app#readme",
+  "homepage": "https://github.com/Innovating-Chaos/PMA#readme",
   "engines": {
     "node": ">=18.0.0",
     "python": ">=3.11.0"
