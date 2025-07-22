@@ -272,7 +272,7 @@ class UserCreate(BaseModel):
     nhs_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    date_of_birth: Optional[datetime] = None
+    date_of_birth: Optional[str] = None  # Changed to string to handle empty values
     gp_license_number: Optional[str] = None
     pharmacy_license_number: Optional[str] = None
     ods_code: Optional[str] = None
