@@ -78,6 +78,38 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Global exception handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle Pydantic validation errors"""
+    error_messages = []
+    for error in exc.errors():
+        field = " -> ".join(str(x) for x in error["loc"][1:])  # Skip 'body'
+        message = error["msg"]
+        error_messages.append(f"{field}: {message}" if field else message)
+    
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "; ".join(error_messages)}
+    )
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Handle ValueError exceptions"""
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc)}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected exceptions"""
+    logger.error(f"Unexpected error: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."}
+    )
+
 # Enhanced Enums
 class UserRole(str, Enum):
     PATIENT = "patient"
