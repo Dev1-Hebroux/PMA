@@ -970,13 +970,28 @@ async def startup_event():
     await db.prescriptions.create_index("patient_id")
     await db.prescriptions.create_index("status")
     await db.prescriptions.create_index("expires_at")
+    await db.prescriptions.create_index("requested_at")
+    await db.prescriptions.create_index("approved_at")
     await db.delegations.create_index("patient_id")
     await db.delegations.create_index("delegate_user_id")
     await db.notifications.create_index("user_id")
     await db.audit_logs.create_index("user_id")
     await db.audit_logs.create_index("timestamp")
     
+    # Start background task for reminder checking
+    asyncio.create_task(reminder_background_task())
+    
     logger.info("Prescription Management App (PMA) powered by Innovating Chaos started successfully")
+
+async def reminder_background_task():
+    """Background task to check for stalled prescriptions every hour"""
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Wait 1 hour
+            await check_stalled_prescriptions()
+        except Exception as e:
+            logger.error(f"Error in reminder background task: {e}")
+            await asyncio.sleep(3600)  # Continue after error
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
