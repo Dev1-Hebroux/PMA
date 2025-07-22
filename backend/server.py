@@ -587,9 +587,12 @@ async def register(user_data: UserCreate):
         
         await db.users.insert_one(user_dict)
         
-        # Create audit log
-        await create_audit_log(user_dict["id"], AuditAction.CREATE, "user", user_dict["id"], 
-                              {"action": "user_registration", "role": user_data.role})
+        # Create audit log (safely)
+        try:
+            await simple_create_audit_log(user_dict["id"], "CREATE", "user", user_dict["id"], 
+                                        {"action": "user_registration", "role": user_data.role})
+        except Exception as audit_error:
+            logger.warning(f"Audit log creation failed: {audit_error}")
         
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
