@@ -634,9 +634,12 @@ async def login(user_data: UserLogin):
         {"$set": {"last_login": datetime.utcnow()}}
     )
     
-    # Create audit log
-    await create_audit_log(user["id"], AuditAction.VIEW, "user", user["id"], 
-                          {"action": "user_login"})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(user["id"], "LOGIN", "user", user["id"], 
+                                    {"action": "user_login"})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
