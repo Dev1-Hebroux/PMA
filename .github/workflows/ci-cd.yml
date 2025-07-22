@@ -48,7 +48,7 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'yarn'
@@ -59,19 +59,50 @@ jobs:
         cd frontend
         yarn install --frozen-lockfile
     
-    - name: Basic frontend check
-      env:
-        REACT_APP_BACKEND_URL: http://localhost:8001
+    - name: Verify installation
       run: |
         cd frontend
         echo "✅ Frontend dependencies installed successfully"
-        node -e "console.log('✅ Node.js is working'); process.exit(0)"
+        yarn list --depth=0
+        echo "✅ Dependencies verified"
+    
+    - name: Basic frontend check
+      env:
+        REACT_APP_BACKEND_URL: http://localhost:8001
+        CI: true
+        NODE_OPTIONS: "--max-old-space-size=4096"
+      run: |
+        cd frontend
+        node -e "console.log('Node.js version:', process.version); console.log('✅ Node.js is working'); process.exit(0)"
         echo "✅ Frontend health check passed"
     
     - name: Build frontend
+      env:
+        CI: true
+        NODE_OPTIONS: "--max-old-space-size=4096"
+        REACT_APP_BACKEND_URL: http://localhost:8001
       run: |
         cd frontend
+        echo "🏗️ Starting frontend build..."
         yarn build
+        echo "✅ Frontend build completed successfully"
+    
+    - name: Verify build output
+      run: |
+        cd frontend
+        if [ -d "build" ]; then
+          echo "✅ Build directory created"
+          ls -la build/
+          if [ -f "build/index.html" ]; then
+            echo "✅ Build files generated successfully"
+          else
+            echo "❌ Build index.html not found"
+            exit 1
+          fi
+        else
+          echo "❌ Build directory not found"
+          exit 1
+        fi
 
   code-quality:
     runs-on: ubuntu-latest
