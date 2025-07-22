@@ -603,6 +603,7 @@ const LoginForm = () => {
 const PatientDashboard = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [showNewPrescription, setShowNewPrescription] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [newPrescription, setNewPrescription] = useState({
     medication_name: '',
     dosage: '',
@@ -613,26 +614,34 @@ const PatientDashboard = () => {
     prescription_type: 'acute'
   });
   const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchPrescriptions();
   }, []);
 
   const fetchPrescriptions = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`${API}/prescriptions`);
       setPrescriptions(response.data);
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreatePrescription = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitLoading(true);
+    
     try {
       await axios.post(`${API}/prescriptions`, newPrescription);
+      
+      // Reset form
       setNewPrescription({
         medication_name: '',
         dosage: '',
@@ -642,12 +651,24 @@ const PatientDashboard = () => {
         priority: 'normal',
         prescription_type: 'acute'
       });
+      
+      // Show success message
       setShowNewPrescription(false);
+      setShowSuccess(true);
+      
+      // Refresh prescriptions
       fetchPrescriptions();
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+      
     } catch (error) {
       console.error('Error creating prescription:', error);
+      alert('Error creating prescription. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
   };
 
@@ -683,217 +704,369 @@ const PatientDashboard = () => {
     }
   };
 
-  return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-800">My Prescriptions</h2>
-          <p className="text-gray-600 mt-2">Manage your prescription requests and track their status</p>
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const requestDate = new Date(date);
+    const diffInHours = Math.floor((now - requestDate) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} days ago`;
+  };
+
+  const isStalled = (prescription) => {
+    const now = new Date();
+    const requestDate = new Date(prescription.requested_at);
+    const hoursSinceRequest = (now - requestDate) / (1000 * 60 * 60);
+    
+    // Consider stalled if pending GP approval for more than 24 hours
+    return prescription.status === 'requested' && hoursSinceRequest > 24;
+  };
+
+  // Dashboard Overview Stats
+  const totalPrescriptions = prescriptions.length;
+  const pendingPrescriptions = prescriptions.filter(p => p.status === 'requested').length;
+  const readyForCollection = prescriptions.filter(p => p.status === 'ready_for_collection').length;
+  const stalledPrescriptions = prescriptions.filter(p => isStalled(p)).length;
+
+  if (!showNewPrescription) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        {/* Success Message */}
+        {showSuccess && (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in">
+            <div className="flex items-center">
+              <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div>
+                <p className="font-medium">Prescription Request Submitted!</p>
+                <p className="text-sm opacity-90">Your GP will review it shortly.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-800">Welcome back, {user?.full_name}</h2>
+          <p className="text-gray-600 mt-2">Here's an overview of your prescriptions</p>
         </div>
+
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Total Prescriptions</p>
+                <p className="text-3xl font-bold text-blue-600">{totalPrescriptions}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Pending Approval</p>
+                <p className="text-3xl font-bold text-yellow-600">{pendingPrescriptions}</p>
+              </div>
+              <div className="bg-yellow-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Ready for Collection</p>
+                <p className="text-3xl font-bold text-green-600">{readyForCollection}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Needs Attention</p>
+                <p className="text-3xl font-bold text-red-600">{stalledPrescriptions}</p>
+              </div>
+              <div className="bg-red-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h3>
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => setShowNewPrescription(true)}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Request New Prescription</span>
+            </button>
+            <button
+              onClick={() => fetchPrescriptions()}
+              className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Prescriptions */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800">Recent Prescriptions</h3>
+            {prescriptions.length > 0 && (
+              <span className="text-sm text-gray-500">
+                Showing {Math.min(prescriptions.length, 5)} of {prescriptions.length} prescriptions
+              </span>
+            )}
+          </div>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-500 mt-2">Loading prescriptions...</p>
+            </div>
+          ) : prescriptions.length === 0 ? (
+            <div className="text-center py-12">
+              <img 
+                src="https://images.unsplash.com/photo-1573883430697-4c3479aae6b9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxwaGFybWFjeXxlbnwwfHx8Ymx1ZXwxNzUyODE5NjI5fDA&ixlib=rb-4.1.0&q=85"
+                alt="No prescriptions"
+                className="h-32 w-32 mx-auto mb-4 rounded-full object-cover"
+              />
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Prescriptions Yet</h3>
+              <p className="text-gray-600 mb-4">Get started by requesting your first prescription.</p>
+              <button
+                onClick={() => setShowNewPrescription(true)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+              >
+                Request Prescription
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {prescriptions.slice(0, 5).map((prescription) => (
+                <div key={prescription.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h4 className="font-semibold text-gray-800">{prescription.medication_name}</h4>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(prescription.status)}`}>
+                        {getStatusText(prescription.status)}
+                      </span>
+                      {isStalled(prescription) && (
+                        <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium">
+                          Needs Follow-up
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      {prescription.dosage} • {prescription.quantity}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Requested {getTimeAgo(prescription.requested_at)}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {prescription.collection_pin && (
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500">Collection PIN</div>
+                        <div className="font-mono font-bold text-blue-600">{prescription.collection_pin}</div>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => setSelectedPrescription(prescription)}
+                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              {prescriptions.length > 5 && (
+                <div className="text-center pt-4">
+                  <button
+                    onClick={() => {/* Add view all functionality */}}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    View All {prescriptions.length} Prescriptions →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Prescription Request Form (same as before but with better loading states)
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="flex items-center mb-6">
         <button
-          onClick={() => setShowNewPrescription(true)}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg flex items-center space-x-2"
-          aria-label="Request new prescription"
+          onClick={() => setShowNewPrescription(false)}
+          className="mr-4 text-gray-600 hover:text-gray-800 transition-colors"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          <span>New Prescription Request</span>
         </button>
+        <h2 className="text-2xl font-bold text-gray-800">Request New Prescription</h2>
       </div>
 
-      {showNewPrescription && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl mb-8 border border-blue-200">
-          <h3 className="text-xl font-semibold mb-6 text-gray-800">Request New Prescription</h3>
-          <form onSubmit={handleCreatePrescription} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Medication Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newPrescription.medication_name}
-                  onChange={(e) => setNewPrescription({...newPrescription, medication_name: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Amoxicillin"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dosage *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newPrescription.dosage}
-                  onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., 500mg"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newPrescription.quantity}
-                  onChange={(e) => setNewPrescription({...newPrescription, quantity: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., 21 tablets"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Priority
-                </label>
-                <select
-                  value={newPrescription.priority}
-                  onChange={(e) => setNewPrescription({...newPrescription, priority: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="emergency">Emergency</option>
-                </select>
-              </div>
-            </div>
-            
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+        <form onSubmit={handleCreatePrescription} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Instructions *
+                Medication Name *
               </label>
               <input
                 type="text"
                 required
-                value={newPrescription.instructions}
-                onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+                value={newPrescription.medication_name}
+                onChange={(e) => setNewPrescription({...newPrescription, medication_name: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="e.g., Take one tablet three times daily with food"
+                placeholder="e.g., Amoxicillin"
+                disabled={submitLoading}
               />
             </div>
-            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Notes
+                Dosage *
               </label>
-              <textarea
-                value={newPrescription.notes}
-                onChange={(e) => setNewPrescription({...newPrescription, notes: e.target.value})}
-                rows="3"
+              <input
+                type="text"
+                required
+                value={newPrescription.dosage}
+                onChange={(e) => setNewPrescription({...newPrescription, dosage: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Any additional information for your GP..."
+                placeholder="e.g., 500mg"
+                disabled={submitLoading}
               />
             </div>
-            
-            <div className="flex space-x-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
-              >
-                {loading ? 'Submitting...' : 'Submit Request'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNewPrescription(false)}
-                className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors font-medium"
-              >
-                Cancel
-              </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quantity *
+              </label>
+              <input
+                type="text"
+                required
+                value={newPrescription.quantity}
+                onChange={(e) => setNewPrescription({...newPrescription, quantity: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., 21 tablets"
+                disabled={submitLoading}
+              />
             </div>
-          </form>
-        </div>
-      )}
-
-      <div className="grid gap-6">
-        {prescriptions.map((prescription) => (
-          <div key={prescription.id} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    {prescription.medication_name}
-                  </h3>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(prescription.status)}`}>
-                    {getStatusText(prescription.status)}
-                  </span>
-                  {prescription.priority !== 'normal' && (
-                    <span className={`text-sm font-medium ${getPriorityColor(prescription.priority)}`}>
-                      {prescription.priority.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="text-gray-600 space-y-1">
-                  <p><strong>Dosage:</strong> {prescription.dosage}</p>
-                  <p><strong>Quantity:</strong> {prescription.quantity}</p>
-                  <p><strong>Instructions:</strong> {prescription.instructions}</p>
-                </div>
-              </div>
-              
-              {prescription.qr_code && (
-                <div className="ml-4">
-                  <div className="text-center">
-                    <img 
-                      src={prescription.qr_code} 
-                      alt="Collection QR Code"
-                      className="w-20 h-20 mx-auto mb-2"
-                    />
-                    <p className="text-xs text-gray-500">Collection Code</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {prescription.notes && (
-              <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Your Notes:</strong> {prescription.notes}
-                </p>
-              </div>
-            )}
-            
-            {prescription.gp_notes && (
-              <div className="bg-green-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-green-800">
-                  <strong>GP Notes:</strong> {prescription.gp_notes}
-                </p>
-              </div>
-            )}
-            
-            <div className="flex justify-between items-center text-sm text-gray-500 border-t pt-4">
-              <div>
-                <p>Requested: {new Date(prescription.requested_at).toLocaleString()}</p>
-                {prescription.approved_at && (
-                  <p>Approved: {new Date(prescription.approved_at).toLocaleString()}</p>
-                )}
-              </div>
-              {prescription.collection_pin && (
-                <div className="text-right">
-                  <p className="font-medium text-blue-600">Collection PIN: {prescription.collection_pin}</p>
-                </div>
-              )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priority
+              </label>
+              <select
+                value={newPrescription.priority}
+                onChange={(e) => setNewPrescription({...newPrescription, priority: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={submitLoading}
+              >
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+                <option value="emergency">Emergency</option>
+              </select>
             </div>
           </div>
-        ))}
-        
-        {prescriptions.length === 0 && (
-          <div className="text-center py-12">
-            <img 
-              src="https://images.unsplash.com/photo-1573883430697-4c3479aae6b9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxwaGFybWFjeXxlbnwwfHx8Ymx1ZXwxNzUyODE5NjI5fDA&ixlib=rb-4.1.0&q=85"
-              alt="No prescriptions"
-              className="h-32 w-32 mx-auto mb-4 rounded-full object-cover"
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Instructions *
+            </label>
+            <input
+              type="text"
+              required
+              value={newPrescription.instructions}
+              onChange={(e) => setNewPrescription({...newPrescription, instructions: e.target.value})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., Take one tablet three times daily with food"
+              disabled={submitLoading}
             />
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Prescriptions Yet</h3>
-            <p className="text-gray-600">Click "New Prescription Request" to get started with your first prescription request.</p>
           </div>
-        )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Notes
+            </label>
+            <textarea
+              value={newPrescription.notes}
+              onChange={(e) => setNewPrescription({...newPrescription, notes: e.target.value})}
+              rows="3"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Any additional information for your GP..."
+              disabled={submitLoading}
+            />
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              type="submit"
+              disabled={submitLoading}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center"
+            >
+              {submitLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Submitting...
+                </>
+              ) : (
+                'Submit Request'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowNewPrescription(false)}
+              disabled={submitLoading}
+              className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-colors font-medium disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
