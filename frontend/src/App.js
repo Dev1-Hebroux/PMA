@@ -639,7 +639,7 @@ const PatientDashboard = () => {
     setSubmitLoading(true);
     
     try {
-      await axios.post(`${API}/prescriptions`, newPrescription);
+      const response = await axios.post(`${API}/prescriptions`, newPrescription);
       
       // Reset form
       setNewPrescription({
@@ -666,7 +666,39 @@ const PatientDashboard = () => {
       
     } catch (error) {
       console.error('Error creating prescription:', error);
-      alert('Error creating prescription. Please try again.');
+      
+      let errorMessage = 'Error creating prescription. Please try again.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to create prescriptions.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Please log in again to create prescriptions.';
+      }
+      
+      // Show error message in a more user-friendly way
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
+      errorDiv.innerHTML = `
+        <div class="flex items-center">
+          <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="font-medium">Error</p>
+            <p class="text-sm opacity-90">${errorMessage}</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(errorDiv);
+      
+      // Remove error message after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(errorDiv)) {
+          document.body.removeChild(errorDiv);
+        }
+      }, 5000);
+      
     } finally {
       setSubmitLoading(false);
     }
