@@ -315,10 +315,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Prescription workflow management"
     - "Enhanced delegation system"
-  stuck_tasks:
-    - "Prescription workflow management"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
