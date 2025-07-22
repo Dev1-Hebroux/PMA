@@ -87,6 +87,16 @@ jobs:
         yarn build
         echo "✅ Frontend build completed successfully"
     
+    - name: Run frontend tests
+      env:
+        CI: true
+        NODE_OPTIONS: "--max-old-space-size=4096"
+      run: |
+        cd frontend
+        echo "🧪 Running frontend tests..."
+        yarn test:ci
+        echo "✅ Frontend tests completed"
+    
     - name: Verify build output
       run: |
         cd frontend
