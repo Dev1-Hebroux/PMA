@@ -488,6 +488,44 @@ const LoginForm = () => {
                 />
               </div>
 
+              {formData.role === 'gp' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GP License Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.gp_license_number}
+                    onChange={(e) => setFormData({...formData, gp_license_number: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="GMC123456"
+                    aria-describedby="gp-license-help"
+                  />
+                  <div id="gp-license-help" className="text-xs text-gray-500 mt-1">
+                    Your GMC license number (optional)
+                  </div>
+                </div>
+              )}
+
+              {formData.role === 'pharmacy' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pharmacy License Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pharmacy_license_number}
+                    onChange={(e) => setFormData({...formData, pharmacy_license_number: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="GPhC987654"
+                    aria-describedby="pharmacy-license-help"
+                  />
+                  <div id="pharmacy-license-help" className="text-xs text-gray-500 mt-1">
+                    Your GPhC license number (optional)
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start space-x-3">
                 <input
                   type="checkbox"
