@@ -43,43 +43,37 @@ jobs:
   
   test-frontend:
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18]
+    timeout-minutes: 10
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '18'
         cache: 'yarn'
         cache-dependency-path: frontend/yarn.lock
     
-    - name: Install dependencies
+    - name: Clean install dependencies
       working-directory: frontend
       run: |
+        echo "Cleaning yarn cache..."
+        yarn cache clean
         echo "Installing dependencies..."
-        yarn install --frozen-lockfile --non-interactive
-        echo "Dependencies installed successfully"
+        yarn install --frozen-lockfile --non-interactive --silent
+        echo "✅ Dependencies installed"
     
-    - name: Lint and type check
-      working-directory: frontend
-      run: |
-        echo "Skipping lint checks for CI speed"
-    
-    - name: Run tests
+    - name: Run tests (if any)
       working-directory: frontend
       env:
         CI: true
         WATCHMAN_DISABLE_CI: true
       run: |
         echo "Running tests..."
-        yarn test:ci || echo "Tests passed with no test files"
-        echo "Tests completed"
+        yarn test:ci
+        echo "✅ Tests completed"
     
     - name: Build application
       working-directory: frontend
@@ -89,19 +83,23 @@ jobs:
         REACT_APP_BACKEND_URL: http://localhost:8001
         GENERATE_SOURCEMAP: false
         DISABLE_ESLINT_PLUGIN: true
+      timeout-minutes: 5
       run: |
-        echo "Building application with react-scripts (CI mode)..."
+        echo "Building with react-scripts (CI mode)..."
         yarn build:ci
-        echo "Build completed"
+        echo "✅ Build completed"
     
-    - name: Verify build
+    - name: Verify build output
       working-directory: frontend
       run: |
-        if [ -f "build/index.html" ]; then
-          echo "✅ Build successful"
+        if [ -f "build/index.html" ] && [ -f "build/static/js/"*.js ]; then
+          echo "✅ Build files created successfully"
           echo "Build size: $(du -sh build/ | cut -f1)"
+          echo "Files in build:"
+          find build -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -5
         else
-          echo "❌ Build failed"
+          echo "❌ Build verification failed"
+          ls -la build/ || echo "Build directory missing"
           exit 1
         fi
 
