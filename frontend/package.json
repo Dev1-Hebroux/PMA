@@ -13,8 +13,9 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
+    "build:ci": "react-scripts build",
     "test": "craco test --passWithNoTests",
-    "test:ci": "craco test --watchAll=false --passWithNoTests",
+    "test:ci": "react-scripts test --watchAll=false --passWithNoTests --ci",
     "eject": "react-scripts eject"
   },
   "browserslist": {
