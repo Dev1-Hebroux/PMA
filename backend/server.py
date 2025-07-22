@@ -699,9 +699,12 @@ async def nominate_pharmacy(nomination: PharmacyNomination, current_user: User =
         {"$set": {"nominated_pharmacy": nomination.pharmacy_id}}
     )
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.UPDATE, "user", current_user.id, 
-                          {"action": "pharmacy_nomination", "pharmacy_id": nomination.pharmacy_id})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "UPDATE", "user", current_user.id, 
+                                    {"action": "pharmacy_nomination", "pharmacy_id": nomination.pharmacy_id})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     return {"message": "Pharmacy nominated successfully"}
 
