@@ -440,6 +440,16 @@ async def register(user_data: UserCreate):
         if user_data.nhs_number and len(user_data.nhs_number.strip()) > 15:
             raise HTTPException(status_code=400, detail="Patient ID must be 15 characters or less")
         
+        # Parse date_of_birth if provided
+        parsed_date_of_birth = None
+        if user_data.date_of_birth and user_data.date_of_birth.strip():
+            try:
+                from datetime import datetime
+                parsed_date_of_birth = datetime.fromisoformat(user_data.date_of_birth.strip())
+            except (ValueError, TypeError):
+                # If date parsing fails, just ignore it for now
+                parsed_date_of_birth = None
+        
         # Create new user
         password_hash = get_password_hash(user_data.password)
         user = User(
@@ -450,7 +460,7 @@ async def register(user_data: UserCreate):
             nhs_number=user_data.nhs_number.strip() if user_data.nhs_number else None,
             phone=user_data.phone,
             address=user_data.address,
-            date_of_birth=user_data.date_of_birth,
+            date_of_birth=parsed_date_of_birth,
             gp_license_number=user_data.gp_license_number,
             pharmacy_license_number=user_data.pharmacy_license_number,
             ods_code=user_data.ods_code,
