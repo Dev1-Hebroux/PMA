@@ -484,6 +484,21 @@ async def create_audit_log(user_id: str, action: AuditAction, resource_type: str
     )
     await db.audit_logs.insert_one(audit_log.dict())
 
+async def simple_create_audit_log(user_id: str, action: str, resource_type: str, 
+                                 resource_id: str, details: Dict[str, Any]):
+    """Simple audit log creation with string action"""
+    audit_data = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "action": action,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "details": details,
+        "timestamp": datetime.utcnow(),
+        "gdpr_category": "healthcare_data"
+    }
+    await db.audit_logs.insert_one(audit_data)
+
 async def send_notification(user_id: str, notification_type: NotificationType, 
                            title: str, message: str, prescription_id: Optional[str] = None):
     """Send notification to user"""
