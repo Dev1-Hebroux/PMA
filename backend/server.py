@@ -422,9 +422,9 @@ async def check_stalled_prescriptions():
             prescription_obj = Prescription(**prescription)
             
             # Send reminder to patient
-            await send_notification(
+            await simple_send_notification(
                 prescription_obj.patient_id,
-                NotificationType.REMINDER,
+                "REMINDER",
                 "Prescription Ready for Pharmacy",
                 f"Your approved prescription for {prescription_obj.medication_name} is ready for pharmacy processing.",
                 prescription_id=prescription_obj.id
@@ -433,9 +433,9 @@ async def check_stalled_prescriptions():
             # Send reminder to all pharmacies
             pharmacies = await db.users.find({"role": UserRole.PHARMACY, "is_active": True}).to_list(50)
             for pharmacy in pharmacies:
-                await send_notification(
+                await simple_send_notification(
                     pharmacy["id"],
-                    NotificationType.REMINDER,
+                    "REMINDER",
                     "Prescription Awaiting Fulfillment",
                     f"Prescription for {prescription_obj.medication_name} has been approved and is awaiting fulfillment.",
                     prescription_id=prescription_obj.id
