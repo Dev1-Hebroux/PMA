@@ -396,54 +396,63 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 # Enhanced Authentication routes
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate):
-    # Check if user already exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Validate patient ID format (basic validation)
-    if user_data.nhs_number and len(user_data.nhs_number.strip()) > 15:
-        raise HTTPException(status_code=400, detail="Patient ID must be 15 characters or less")
-    
-    # Create new user
-    password_hash = get_password_hash(user_data.password)
-    user = User(
-        email=user_data.email,
-        password_hash=password_hash,
-        full_name=user_data.full_name,
-        role=user_data.role,
-        nhs_number=user_data.nhs_number,
-        phone=user_data.phone,
-        address=user_data.address,
-        date_of_birth=user_data.date_of_birth,
-        gp_license_number=user_data.gp_license_number,
-        pharmacy_license_number=user_data.pharmacy_license_number,
-        ods_code=user_data.ods_code,
-        accessibility_requirements=user_data.accessibility_requirements,
-        gdpr_consent=user_data.gdpr_consent,
-        gdpr_consent_date=datetime.utcnow() if user_data.gdpr_consent else None
-    )
-    
-    await db.users.insert_one(user.dict())
-    
-    # Create audit log
-    await create_audit_log(user.id, AuditAction.CREATE, "user", user.id, 
-                          {"action": "user_registration", "role": user.role})
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.id, "role": user.role}, 
-        expires_delta=access_token_expires
-    )
-    
-    return Token(
-        access_token=access_token, 
-        token_type="bearer", 
-        user_id=user.id, 
-        role=user.role,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
+    try:
+        # Check if user already exists
+        existing_user = await db.users.find_one({"email": user_data.email})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Validate patient ID format (basic validation)
+        if user_data.nhs_number and len(user_data.nhs_number.strip()) > 15:
+            raise HTTPException(status_code=400, detail="Patient ID must be 15 characters or less")
+        
+        # Create new user
+        password_hash = get_password_hash(user_data.password)
+        user = User(
+            email=user_data.email,
+            password_hash=password_hash,
+            full_name=user_data.full_name,
+            role=user_data.role,
+            nhs_number=user_data.nhs_number.strip() if user_data.nhs_number else None,
+            phone=user_data.phone,
+            address=user_data.address,
+            date_of_birth=user_data.date_of_birth,
+            gp_license_number=user_data.gp_license_number,
+            pharmacy_license_number=user_data.pharmacy_license_number,
+            ods_code=user_data.ods_code,
+            accessibility_requirements=user_data.accessibility_requirements,
+            gdpr_consent=user_data.gdpr_consent,
+            gdpr_consent_date=datetime.utcnow() if user_data.gdpr_consent else None
+        )
+        
+        await db.users.insert_one(user.dict())
+        
+        # Create audit log
+        await create_audit_log(user.id, AuditAction.CREATE, "user", user.id, 
+                              {"action": "user_registration", "role": user.role})
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.id, "role": user.role}, 
+            expires_delta=access_token_expires
+        )
+        
+        return Token(
+            access_token=access_token, 
+            token_type="bearer", 
+            user_id=user.id, 
+            role=user.role,
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Log unexpected errors and return generic message
+        logger.error(f"Registration error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
 @api_router.post("/auth/login", response_model=Token)
 async def login(user_data: UserLogin):
