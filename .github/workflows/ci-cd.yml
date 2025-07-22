@@ -90,8 +90,8 @@ jobs:
         GENERATE_SOURCEMAP: false
         DISABLE_ESLINT_PLUGIN: true
       run: |
-        echo "Building application..."
-        yarn build
+        echo "Building application with react-scripts (CI mode)..."
+        yarn build:ci
         echo "Build completed"
     
     - name: Verify build
