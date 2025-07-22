@@ -451,7 +451,10 @@ const LoginForm = () => {
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
-              <span className="font-medium">Error:</span> {error}
+              <span className="font-medium">Error:</span>
+              <div className="mt-1 text-sm">
+                {typeof error === 'string' ? error : JSON.stringify(error)}
+              </div>
             </div>
           )}
 
