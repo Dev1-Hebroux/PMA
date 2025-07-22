@@ -520,6 +520,34 @@ async def send_notification(user_id: str, notification_type: NotificationType,
         user_id
     )
 
+async def simple_send_notification(user_id: str, notification_type: str, 
+                                  title: str, message: str, prescription_id: Optional[str] = None):
+    """Simple notification creation with string notification type"""
+    notification_data = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "notification_type": notification_type,
+        "title": title,
+        "message": message,
+        "prescription_id": prescription_id,
+        "created_at": datetime.utcnow(),
+        "is_read": False,
+        "priority": "normal"
+    }
+    await db.notifications.insert_one(notification_data)
+    
+    # Send real-time notification via WebSocket
+    try:
+        await manager.send_personal_message(
+            json.dumps({
+                "type": "notification",
+                "data": notification_data
+            }),
+            user_id
+        )
+    except Exception as ws_error:
+        logger.warning(f"WebSocket notification failed: {ws_error}")
+
 # WebSocket endpoint
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
