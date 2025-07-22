@@ -685,46 +685,79 @@ async def nominate_pharmacy(nomination: PharmacyNomination, current_user: User =
 @api_router.post("/prescriptions", response_model=Prescription)
 async def create_prescription(prescription_data: PrescriptionCreate, 
                              current_user: User = Depends(get_current_user)):
-    if current_user.role != UserRole.PATIENT:
-        raise HTTPException(status_code=403, detail="Only patients can create prescriptions")
-    
-    # Generate collection PIN and QR code
-    collection_pin = generate_collection_pin()
-    qr_data = f"prescription:{prescription_data.medication_name}:{collection_pin}"
-    qr_code = generate_qr_code(qr_data)
-    
-    prescription = Prescription(
-        patient_id=current_user.id,
-        patient_nhs_number=current_user.nhs_number,
-        medication_name=prescription_data.medication_name,
-        medication_code=prescription_data.medication_code,
-        dosage=prescription_data.dosage,
-        quantity=prescription_data.quantity,
-        instructions=prescription_data.instructions,
-        indication=prescription_data.indication,
-        prescription_type=prescription_data.prescription_type,
-        notes=prescription_data.notes,
-        priority=prescription_data.priority,
-        max_repeats=prescription_data.max_repeats,
-        collection_pin=collection_pin,
-        qr_code=qr_code
-    )
-    
-    await db.prescriptions.insert_one(prescription.dict())
-    
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.CREATE, "prescription", prescription.id, 
-                          {"action": "prescription_created", "medication": prescription.medication_name})
-    
-    # Send notification (placeholder - would integrate with actual notification service)
-    await send_notification(
-        current_user.id, 
-        NotificationType.PRESCRIPTION_APPROVED,
-        "Prescription Request Submitted",
-        f"Your prescription for {prescription.medication_name} has been submitted for GP approval."
-    )
-    
-    return prescription
+    try:
+        if current_user.role != UserRole.PATIENT:
+            raise HTTPException(status_code=403, detail="Only patients can create prescriptions")
+        
+        # Generate collection PIN and QR code
+        collection_pin = generate_collection_pin()
+        qr_data = f"prescription:{prescription_data.medication_name}:{collection_pin}"
+        qr_code = generate_qr_code(qr_data)
+        
+        # Create prescription dictionary for database
+        prescription_dict = {
+            "id": str(uuid.uuid4()),
+            "patient_id": current_user.id,
+            "patient_nhs_number": current_user.nhs_number,
+            "medication_name": prescription_data.medication_name,
+            "medication_code": prescription_data.medication_code,
+            "dosage": prescription_data.dosage,
+            "quantity": prescription_data.quantity,
+            "instructions": prescription_data.instructions,
+            "indication": prescription_data.indication,
+            "prescription_type": prescription_data.prescription_type,
+            "notes": prescription_data.notes,
+            "priority": prescription_data.priority,
+            "max_repeats": prescription_data.max_repeats,
+            "collection_pin": collection_pin,
+            "qr_code": qr_code,
+            "status": PrescriptionStatus.REQUESTED,
+            "requested_at": datetime.utcnow(),
+            "expires_at": datetime.utcnow() + timedelta(days=28),
+            "repeat_count": 0
+        }
+        
+        # Insert into database
+        await db.prescriptions.insert_one(prescription_dict)
+        
+        # Create audit log (safely)
+        try:
+            audit_data = {
+                "user_id": current_user.id,
+                "action": AuditAction.CREATE,
+                "resource_type": "prescription",
+                "resource_id": prescription_dict["id"],
+                "details": {"action": "prescription_created", "medication": prescription_dict["medication_name"]},
+                "timestamp": datetime.utcnow()
+            }
+            await db.audit_logs.insert_one(audit_data)
+        except Exception as audit_error:
+            logger.warning(f"Audit log creation failed: {audit_error}")
+        
+        # Send notification (safely)
+        try:
+            notification_data = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user.id,
+                "notification_type": NotificationType.PRESCRIPTION_APPROVED,
+                "title": "Prescription Request Submitted",
+                "message": f"Your prescription for {prescription_dict['medication_name']} has been submitted for GP approval.",
+                "prescription_id": prescription_dict["id"],
+                "created_at": datetime.utcnow(),
+                "is_read": False
+            }
+            await db.notifications.insert_one(notification_data)
+        except Exception as notif_error:
+            logger.warning(f"Notification creation failed: {notif_error}")
+        
+        # Return the prescription object
+        return Prescription(**prescription_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating prescription: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create prescription. Please try again.")
 
 @api_router.get("/prescriptions", response_model=List[Prescription])
 async def get_prescriptions(current_user: User = Depends(get_current_user)):
