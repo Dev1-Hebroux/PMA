@@ -993,9 +993,12 @@ async def approve_delegation(delegation_id: str, current_user: User = Depends(ge
     
     await db.delegations.update_one({"id": delegation_id}, {"$set": update_data})
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.APPROVE, "delegation", delegation_id, 
-                          {"action": "delegation_approved"})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "APPROVE", "delegation", delegation_id, 
+                                    {"action": "delegation_approved"})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
     return {"message": "Delegation approved successfully"}
 
