@@ -1,0 +1,66 @@
+{
+  "name": "prescription-management-app",
+  "version": "2.0.0",
+  "description": "A comprehensive healthcare prescription management platform powered by Innovating Chaos",
+  "main": "index.js",
+  "scripts": {
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "install:frontend": "cd frontend && npm install",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "start:backend": "cd backend && python server.py",
+    "start:frontend": "cd frontend && npm start",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "build": "cd frontend && npm run build",
+    "test:backend": "cd backend && python -m pytest",
+    "test:frontend": "cd frontend && npm test",
+    "test": "npm run test:backend && npm run test:frontend",
+    "lint:backend": "cd backend && flake8 --max-line-length=100 *.py",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "format:backend": "cd backend && black *.py && isort *.py",
+    "format:frontend": "cd frontend && npm run format",
+    "format": "npm run format:backend && npm run format:frontend",
+    "docs": "echo 'Documentation available in docs/ directory'",
+    "clean": "rm -rf frontend/build backend/__pycache__ backend/*.pyc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/prescription-management-app.git"
+  },
+  "keywords": [
+    "healthcare",
+    "prescription",
+    "management",
+    "react",
+    "fastapi",
+    "mongodb",
+    "medical",
+    "pharmacy",
+    "patient",
+    "doctor",
+    "gp",
+    "delegate",
+    "accessibility",
+    "wcag",
+    "gdpr",
+    "compliance"
+  ],
+  "author": "Innovating Chaos",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/prescription-management-app/issues"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/prescription-management-app#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11.0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  },
+  "config": {
+    "backend_port": "8001",
+    "frontend_port": "3000",
+    "mongo_port": "27017"
+  }
+}
