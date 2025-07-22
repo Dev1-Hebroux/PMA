@@ -945,18 +945,24 @@ async def create_delegation(delegation_data: DelegationCreate,
     
     await db.delegations.insert_one(delegation.dict())
     
-    # Create audit log
-    await create_audit_log(current_user.id, AuditAction.CREATE, "delegation", delegation.id, 
-                          {"action": "delegation_created", "delegate": delegation.delegate_name})
+    # Create audit log (safely)
+    try:
+        await simple_create_audit_log(current_user.id, "CREATE", "delegation", delegation.id, 
+                                    {"action": "delegation_created", "delegate": delegation.delegate_name})
+    except Exception as audit_error:
+        logger.warning(f"Audit log creation failed: {audit_error}")
     
-    # Send notification to delegate
-    await send_notification(
-        delegation.delegate_user_id,
-        NotificationType.DELEGATION_REQUEST,
-        "Delegation Request",
-        f"You have been authorized to collect prescriptions for {current_user.full_name}.",
-        delegation_id=delegation.id
-    )
+    # Send notification to delegate (safely)
+    try:
+        await simple_send_notification(
+            delegation.delegate_user_id,
+            "DELEGATION_REQUEST",
+            "Delegation Request",
+            f"You have been authorized to collect prescriptions for {current_user.full_name}.",
+            delegation_id=delegation.id
+        )
+    except Exception as notif_error:
+        logger.warning(f"Notification creation failed: {notif_error}")
     
     return delegation
 
