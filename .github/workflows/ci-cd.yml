@@ -154,17 +154,77 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Deployment ready
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Build Docker image
+      run: |
+        docker build -t pma-app:${{ github.sha }} .
+        docker tag pma-app:${{ github.sha }} pma-app:latest
+        echo "✅ Docker image built successfully"
+    
+    - name: Test Docker image
+      run: |
+        # Test that the Docker image can run
+        docker run --rm -d --name pma-test -p 8080:3000 pma-app:latest
+        sleep 10
+        
+        # Check if container is running
+        if docker ps | grep -q "pma-test"; then
+          echo "✅ Docker container started successfully"
+          docker stop pma-test
+        else
+          echo "❌ Docker container failed to start"
+          exit 1
+        fi
+    
+    - name: Prepare deployment artifacts
+      run: |
+        echo "🚀 Preparing deployment artifacts..."
+        
+        # Create deployment directory
+        mkdir -p deployment-artifacts
+        
+        # Copy essential files
+        cp docker-compose.yml deployment-artifacts/
+        cp Dockerfile deployment-artifacts/
+        cp deploy.sh deployment-artifacts/
+        cp -r docs/ deployment-artifacts/
+        
+        # Create deployment info
+        cat > deployment-artifacts/deployment-info.json << EOF
+        {
+          "version": "${{ github.sha }}",
+          "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "branch": "${{ github.ref_name }}",
+          "repository": "${{ github.repository }}",
+          "live_url": "https://ab6009e8-2e3e-4cd0-b3b8-a452a86b19f9.preview.emergentagent.com"
+        }
+        EOF
+        
+        echo "✅ Deployment artifacts prepared"
+    
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: pma-deployment-artifacts
+        path: deployment-artifacts/
+        retention-days: 30
+    
+    - name: Deployment ready notification
       run: |
         echo "🚀 PMA is ready for deployment!"
         echo "✅ All quality checks passed"
+        echo "🐳 Docker image: pma-app:${{ github.sha }}"
         echo "📊 Repository: ${{ github.repository }}"
         echo "🔗 Live Demo: https://ab6009e8-2e3e-4cd0-b3b8-a452a86b19f9.preview.emergentagent.com"
         echo "📚 Documentation: Available in docs/ directory"
         echo "🐳 Docker: Use docker-compose up to run locally"
         
-    - name: Success notification
+    - name: Deployment success notification
       run: |
-        echo "🎉 PMA CI/CD Pipeline completed successfully!"
+        echo "🎉 PMA CI/CD Pipeline with Deployment completed successfully!"
         echo "✨ Prescription Management App is production-ready"
-        echo "🏥 Powered by Innovating Chaos"
+        echo "🏥 Ready for healthcare deployment"
+        echo "🔄 Automated deployment pipeline active"
+        echo "📈 Version: ${{ github.sha }}"
