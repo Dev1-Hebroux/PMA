@@ -307,6 +307,21 @@ frontend:
           agent: "testing"
           comment: "✅ RESPONSIVE DESIGN AND UI TESTING PASSED: Professional medical-themed interface working perfectly across all screen sizes. Tested desktop (1920x4000), tablet (768x1024), and mobile (390x844) viewports - all responsive and accessible. Medical imagery from Unsplash loading correctly. Status indicators working with proper color coding (yellow for pending, blue for approved, green for fulfilled). Role-based navigation working correctly with user info and logout functionality. Clean, professional design suitable for medical application."
 
+  - task: "CI/CD pipeline configuration"
+    implemented: true
+    working: "NA"
+    file: ".github/workflows/ci-cd.yml"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "main"
+          comment: "CI/CD pipeline was failing due to npm/yarn mismatch. Frontend uses yarn but CI/CD was configured for npm. Also had invalid Python package 'jq' in requirements.txt."
+        - working: "NA"
+          agent: "main"
+          comment: "Fixed CI/CD configuration: Changed from npm to yarn, updated cache dependency path to yarn.lock, changed build commands to use yarn, cleaned up requirements.txt by removing invalid 'jq' package. Ready for testing."
+
 metadata:
   created_by: "main_agent"
   version: "2.0"
