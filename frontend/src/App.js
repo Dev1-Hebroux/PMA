@@ -292,6 +292,9 @@ const LoginForm = () => {
     phone: '',
     address: '',
     date_of_birth: '',
+    gp_license_number: '',
+    pharmacy_license_number: '',
+    ods_code: '',
     gdpr_consent: false
   });
   const [error, setError] = useState('');
